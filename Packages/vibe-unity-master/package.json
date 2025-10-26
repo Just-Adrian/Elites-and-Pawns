@@ -1,0 +1,42 @@
+{
+    "name": "com.ricoder.vibe-unity",
+    "version": "2.0.0",
+    "displayName": "Vibe Unity",
+    "description": "Unity development workflow automation with JSON-driven scene creation, real-time compilation detection, and configurable shortcuts. Features scene export/import, coverage analysis, settings UI, and enhanced claude-code integration with persistent status files.",
+    "unity": "2022.3",
+    "unityRelease": "0f1",
+    "keywords": [
+        "cli",
+        "automation",
+        "scenes",
+        "canvas",
+        "workflow",
+        "development",
+        "tools",
+        "wsl",
+        "editor",
+        "json",
+        "state-management",
+        "coverage-analysis",
+        "claude-code",
+        "compilation",
+        "shortcuts",
+        "settings",
+        "real-time"
+    ],
+    "author": {
+        "name": "RICoder72",
+        "url": "https://github.com/RICoder72/vibe-unity"
+    },
+    "category": "Editor Extensions",
+    "type": "tool",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RICoder72/vibe-unity.git"
+    },
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/RICoder72/vibe-unity/issues"
+    },
+    "homepage": "https://github.com/RICoder72/vibe-unity#readme"
+}
