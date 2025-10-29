@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "sceneName": "NetworkTest",
-  "exportTimestamp": "2025-10-26 14:24:06",
+  "exportTimestamp": "2025-10-26 15:21:19",
   "gameObjects": [
     {
       "name": "Main Camera",
@@ -28,6 +28,58 @@
       "position": [0.000, -0.500, 0.000],
       "rotation": [0.000, 0.000, 0.000],
       "scale": [20.000, 1.000, 20.000]
+    },
+    {
+      "name": "NetworkManager",
+      "path": "NetworkManager",
+      "active": true,
+      "position": [10.839, 0.000, 3.652],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "ElitesNetworkManager",
+        "KcpTransport",
+        "NetworkManagerHUD"
+      ]    },
+    {
+      "name": "SpawnPoints",
+      "path": "SpawnPoints",
+      "active": true,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "Spawn1",
+      "path": "SpawnPoints/Spawn1",
+      "active": true,
+      "position": [-5.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "Spawn2",
+      "path": "SpawnPoints/Spawn2",
+      "active": true,
+      "position": [5.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "Spawn3",
+      "path": "SpawnPoints/Spawn3",
+      "active": true,
+      "position": [0.000, 0.000, -5.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "Spawn4",
+      "path": "SpawnPoints/Spawn4",
+      "active": true,
+      "position": [0.000, 0.000, 5.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
     }
   ]
 }

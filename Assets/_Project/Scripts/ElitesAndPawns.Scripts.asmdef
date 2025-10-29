@@ -1,0 +1,18 @@
+{
+    "name": "ElitesAndPawns.Scripts",
+    "rootNamespace": "ElitesAndPawns",
+    "references": [
+        "Mirror",
+        "Mirror.Components",
+        "Mirror.Authenticators"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
