@@ -58,6 +58,7 @@ namespace ElitesAndPawns.Player
                 {
                     // Create camera if doesn't exist
                     GameObject cameraObj = new GameObject("PlayerCamera");
+                    cameraObj.tag = "MainCamera"; // TAG IT SO Camera.main WORKS!
                     cameraObj.transform.SetParent(transform);
                     cameraObj.transform.localPosition = new Vector3(0, 0.6f, 0); // Eye level
                     cameraTransform = cameraObj.transform;
@@ -82,12 +83,18 @@ namespace ElitesAndPawns.Player
                 if (cam != null)
                 {
                     cam.enabled = true;
+                    // Make sure it's tagged
+                    if (cam.tag != "MainCamera")
+                    {
+                        cam.tag = "MainCamera";
+                    }
                 }
             }
 
             if (debugMode)
             {
                 Debug.Log("[PlayerController] Local player controller initialized");
+                Debug.Log($"[PlayerController] Camera: {cameraTransform?.name}, Tag: {cameraTransform?.tag}");
             }
         }
 
@@ -146,38 +153,42 @@ namespace ElitesAndPawns.Player
         }
 
         /// <summary>
-        /// Check if player is on the ground - IMPROVED VERSION
+        /// Check if player is on the ground - FIXED VERSION
         /// </summary>
         private void CheckGrounded()
         {
-            // Use CharacterController's built-in check as primary
-            isGrounded = characterController.isGrounded;
-
-            // Additional sphere check for more reliable detection
-            Vector3 spherePosition = transform.position + new Vector3(0, 0.1f, 0);
-            bool sphereCheck = Physics.CheckSphere(spherePosition, characterController.radius * 0.9f, groundMask);
+            // Check a sphere at the bottom of the character controller
+            float checkDistance = (characterController.height / 2f) + 0.1f;
+            Vector3 spherePosition = transform.position - new Vector3(0, checkDistance, 0);
+            float sphereRadius = characterController.radius * 0.9f;
             
-            // Grounded if either check succeeds
-            isGrounded = isGrounded || sphereCheck;
+            // Use CheckSphere for detection
+            isGrounded = Physics.CheckSphere(spherePosition, sphereRadius, groundMask);
 
-            // IMPORTANT: Reset velocity.y when grounded to prevent accumulation
+            // Additional check: make sure we're not detecting ourselves
             if (isGrounded)
             {
-                if (velocity.y < 0)
-                {
-                    velocity.y = -2f; // Small negative value keeps us grounded
-                }
+                // Verify with a raycast
+                bool raycastCheck = Physics.Raycast(
+                    transform.position,
+                    Vector3.down,
+                    checkDistance + sphereRadius,
+                    groundMask
+                );
+                
+                isGrounded = raycastCheck;
             }
 
             // Debug visualization
             if (debugMode)
             {
-                Debug.DrawRay(transform.position, Vector3.down * groundCheckDistance, isGrounded ? Color.green : Color.red);
+                Color debugColor = isGrounded ? Color.green : Color.red;
+                Debug.DrawRay(transform.position, Vector3.down * (checkDistance + sphereRadius), debugColor);
             }
         }
 
         /// <summary>
-        /// Handle player movement and jumping
+        /// Handle player movement and jumping - FIXED VERSION
         /// </summary>
         private void HandleMovement()
         {
@@ -198,24 +209,24 @@ namespace ElitesAndPawns.Player
                 
                 if (debugMode)
                 {
-                    Debug.Log($"[PlayerController] Jump! Velocity.y set to: {velocity.y}");
+                    Debug.Log($"[PlayerController] JUMP! Velocity.y: {velocity.y:F2}");
                 }
             }
 
             // Apply gravity
             velocity.y += gravity * Time.deltaTime;
-
-            // Clamp falling velocity to prevent extreme speeds
+            
+            // Clamp falling velocity
             velocity.y = Mathf.Max(velocity.y, -50f);
+
+            // CRITICAL FIX: Reset velocity AFTER applying gravity if grounded
+            if (isGrounded && velocity.y < 0)
+            {
+                velocity.y = -2f; // Small downward force to keep grounded
+            }
 
             // Apply vertical velocity
             characterController.Move(velocity * Time.deltaTime);
-
-            // Debug info
-            if (debugMode && jumpPressed)
-            {
-                Debug.Log($"[PlayerController] IsGrounded: {isGrounded}, Velocity.y: {velocity.y}");
-            }
         }
 
         /// <summary>
@@ -261,10 +272,15 @@ namespace ElitesAndPawns.Player
         {
             if (!debugMode || characterController == null) return;
 
-            // Draw ground check sphere
+            // Draw ground check sphere at the bottom of character
             Gizmos.color = isGrounded ? Color.green : Color.red;
-            Vector3 spherePosition = transform.position + new Vector3(0, 0.1f, 0);
+            float checkDistance = (characterController.height / 2f) + 0.1f;
+            Vector3 spherePosition = transform.position - new Vector3(0, checkDistance, 0);
             Gizmos.DrawWireSphere(spherePosition, characterController.radius * 0.9f);
+            
+            // Draw a line from player to sphere check position
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(transform.position, spherePosition);
         }
     }
 }

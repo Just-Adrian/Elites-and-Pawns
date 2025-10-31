@@ -1,0 +1,13 @@
+{
+  "scene": {
+    "name": "NetworkTest",
+    "path": "Assets/_Project/Scenes",
+    "create": false
+  },
+  "commands": [
+    {
+      "action": "add-canvas",
+      "name": "NetworkUI"
+    }
+  ]
+}

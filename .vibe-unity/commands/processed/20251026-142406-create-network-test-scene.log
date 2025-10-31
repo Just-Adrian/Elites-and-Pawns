@@ -1,0 +1,139 @@
+=== Processing create-network-test-scene.json ===
+Timestamp: 2025-10-26 14:24:06
+File Path: C:\Users\Adrian\Elites and Pawns True\.vibe-unity\commands\create-network-test-scene.json
+
+JSON Content:
+{
+  "scene": {
+    "name": "NetworkTest",
+    "path": "Assets/_Project/Scenes",
+    "create": true
+  },
+  "commands": [
+    {
+      "action": "add-cube",
+      "name": "Ground",
+      "position": [0, -0.5, 0],
+      "scale": [20, 1, 20]
+    },
+    {
+      "action": "add-light",
+      "name": "Directional Light",
+      "type": "directional",
+      "rotation": [50, -30, 0]
+    }
+  ]
+}
+
+
+✅ JSON parsing successful
+✅ Batch file loaded: 2 commands
+Description: 
+
+=== Scene Configuration Validation ===
+✅ Scene Name: 'NetworkTest'
+   └─ Create if missing: True
+   └─ Creation Path: Assets/_Project/Scenes
+   └─ Scene Type: DefaultGameObjects
+   └─ Add to Build: False
+
+=== Scene Processing ===
+Processing scene: 'NetworkTest'
+⚠️ Scene not found, creating as requested: NetworkTest
+   └─ Path: Assets/_Project/Scenes
+   └─ Type: DefaultGameObjects
+   └─ Add to Build: False
+✅ Scene created and loaded: NetworkTest
+   └─ Full Path: Assets/_Project/Scenes/NetworkTest.unity
+=== Command Execution (2 commands) ===
+--- Command 1/2: add-cube ---
+Command details: {
+    "action": "add-cube",
+    "name": "Ground",
+    "sceneName": "",
+    "path": "",
+    "type": "",
+    "addToBuild": false,
+    "scene": "",
+    "renderMode": "",
+    "referenceWidth": 0,
+    "referenceHeight": 0,
+    "scaleMode": "",
+    "sortingOrder": 0,
+    "worldPosition": [],
+    "parent": "",
+    "width": 0.0,
+    "height": 0.0,
+    "anchor": "",
+    "position": [
+        0.0,
+        -0.5,
+        0.0
+    ],
+    "rotation": [],
+    "scale": [
+        20.0,
+        1.0,
+        20.0
+    ],
+    "horizontal": true,
+    "vertical": true,
+    "scrollbarVisibility": "AutoHideAndExpandViewport",
+    "scrollSensitivity": 1.0,
+    "text": "",
+    "fontSize": 0,
+    "color": "",
+    "componentType": "",
+    "parameters": []
+}
+Cube Name: Ground
+Position: (0.00, -0.50, 0.00)
+Scale: (20.00, 1.00, 20.00)
+✅ Cube created successfully: Ground
+   └─ Position: (0.00, -0.50, 0.00)
+   └─ Has Collider: True
+   └─ Has Renderer: True
+✅ Command 1 succeeded: add-cube
+
+--- Command 2/2: add-light ---
+Command details: {
+    "action": "add-light",
+    "name": "Directional Light",
+    "sceneName": "",
+    "path": "",
+    "type": "directional",
+    "addToBuild": false,
+    "scene": "",
+    "renderMode": "",
+    "referenceWidth": 0,
+    "referenceHeight": 0,
+    "scaleMode": "",
+    "sortingOrder": 0,
+    "worldPosition": [],
+    "parent": "",
+    "width": 0.0,
+    "height": 0.0,
+    "anchor": "",
+    "position": [],
+    "rotation": [
+        50.0,
+        -30.0,
+        0.0
+    ],
+    "scale": [],
+    "horizontal": true,
+    "vertical": true,
+    "scrollbarVisibility": "AutoHideAndExpandViewport",
+    "scrollSensitivity": 1.0,
+    "text": "",
+    "fontSize": 0,
+    "color": "",
+    "componentType": "",
+    "parameters": []
+}
+❌ ERROR: Unknown batch command: add-light
+❌ Command 2 failed: add-light
+
+=== Processing Complete ===
+Result: FAILURE
+End Time: 2025-10-26 14:24:06

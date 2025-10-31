@@ -1,0 +1,36 @@
+=== Processing add-network-ui.json ===
+Timestamp: 2025-10-26 15:19:41
+File Path: C:\Users\Adrian\Elites and Pawns True\.vibe-unity\commands\add-network-ui.json
+
+JSON Content:
+{
+  "scene": {
+    "name": "NetworkTest",
+    "path": "Assets/_Project/Scenes",
+    "create": false
+  },
+  "commands": [
+    {
+      "action": "add-canvas",
+      "name": "NetworkUI"
+    }
+  ]
+}
+
+
+✅ JSON parsing successful
+✅ Batch file loaded: 1 commands
+Description: 
+
+=== Scene Configuration Validation ===
+✅ Scene Name: 'NetworkTest'
+   └─ Create if missing: False
+
+=== Scene Processing ===
+Processing scene: 'NetworkTest'
+✅ Scene file found: Assets/_Project/Scenes/NetworkTest.unity
+❌ Failed to load scene: This cannot be used during play mode, please use SceneManager.LoadScene()/SceneManager.LoadSceneAsync() instead.
+
+=== Processing Complete ===
+Result: FAILURE
+End Time: 2025-10-26 15:19:41

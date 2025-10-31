@@ -12,6 +12,7 @@ namespace ElitesAndPawns.Networking
         [Header("Elites Configuration")]
         [SerializeField] private int maxPlayersPerTeam = 8; // 8v8 = 16 total
         [SerializeField] private bool autoAssignFaction = true;
+        [SerializeField] private bool autoRegisterProjectiles = true;
 
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
@@ -20,6 +21,41 @@ namespace ElitesAndPawns.Networking
         private int bluePlayerCount = 0;
         private int redPlayerCount = 0;
         private int greenPlayerCount = 0;
+
+        public override void Awake()
+        {
+            // CRITICAL: Call base.Awake() for Mirror's singleton pattern
+            base.Awake();
+            
+            // Auto-register projectile prefabs if enabled
+            if (autoRegisterProjectiles)
+            {
+                AutoRegisterProjectilePrefabs();
+            }
+            
+            // Debug: Log detailed info
+            Debug.Log($"[ElitesNetworkManager] Awake called on GameObject: {gameObject.name}");
+            Debug.Log($"[ElitesNetworkManager] InstanceID: {GetInstanceID()}");
+            Debug.Log($"[ElitesNetworkManager] Scene: {gameObject.scene.name}");
+            Debug.Log($"[ElitesNetworkManager] Parent: {(transform.parent != null ? transform.parent.name : "null")}");
+            Debug.Log($"[ElitesNetworkManager] Is this the singleton? {NetworkManager.singleton == this}");
+            
+            // Check if we're a duplicate
+            if (NetworkManager.singleton != null && NetworkManager.singleton != this)
+            {
+                Debug.LogError($"[ElitesNetworkManager] DUPLICATE DETECTED! Singleton is: {NetworkManager.singleton.name} (ID: {NetworkManager.singleton.GetInstanceID()})");
+                Debug.LogError($"[ElitesNetworkManager] This instance: {gameObject.name} (ID: {GetInstanceID()})");
+            }
+        }
+
+        private void OnDestroy()
+        {
+            // Debug: Log when this NetworkManager is destroyed
+            Debug.LogWarning($"[ElitesNetworkManager] OnDestroy called on GameObject: {gameObject.name} (InstanceID: {GetInstanceID()})");
+            
+            // Log stack trace to see WHO is destroying this
+            Debug.LogWarning($"[ElitesNetworkManager] Destroyed from:\n{System.Environment.StackTrace}");
+        }
 
         public override void OnStartServer()
         {
@@ -72,6 +108,44 @@ namespace ElitesAndPawns.Networking
             }
 
             base.OnServerDisconnect(conn);
+        }
+
+        /// <summary>
+        /// Automatically find and register all projectile prefabs from WeaponData assets
+        /// </summary>
+        private void AutoRegisterProjectilePrefabs()
+        {
+            // Find all WeaponData scriptable objects
+            Weapons.WeaponData[] weaponDataAssets = Resources.FindObjectsOfTypeAll<Weapons.WeaponData>();
+            
+            if (debugMode)
+            {
+                Debug.Log($"[ElitesNetworkManager] Auto-registering projectile prefabs. Found {weaponDataAssets.Length} WeaponData assets.");
+            }
+
+            int registeredCount = 0;
+            foreach (var weaponData in weaponDataAssets)
+            {
+                if (weaponData.projectilePrefab != null)
+                {
+                    // Check if already registered
+                    if (!spawnPrefabs.Contains(weaponData.projectilePrefab))
+                    {
+                        spawnPrefabs.Add(weaponData.projectilePrefab);
+                        registeredCount++;
+                        
+                        if (debugMode)
+                        {
+                            Debug.Log($"[ElitesNetworkManager] Registered projectile prefab: {weaponData.projectilePrefab.name} from weapon: {weaponData.weaponName}");
+                        }
+                    }
+                }
+            }
+            
+            if (debugMode)
+            {
+                Debug.Log($"[ElitesNetworkManager] Registered {registeredCount} projectile prefab(s). Total spawnable prefabs: {spawnPrefabs.Count}");
+            }
         }
 
         /// <summary>

@@ -1,0 +1,18 @@
+=== Processing create-network-test-scene.json ===
+Timestamp: 2025-10-26 14:22:55
+File Path: C:\Users\Adrian\Elites and Pawns True\.vibe-unity\commands\create-network-test-scene.json
+
+JSON Content:
+{
+  "action": "create-scene",
+  "name": "NetworkTest",
+  "path": "Assets/_Project/Scenes"
+}
+
+
+✅ JSON parsing successful
+❌ ERROR: No commands found in batch file
+
+=== Processing Complete ===
+Result: FAILURE
+End Time: 2025-10-26 14:22:55

@@ -1,0 +1,9 @@
+{
+  "commands": [
+    {
+      "action": "create-scene",
+      "name": "NetworkTest",
+      "path": "Assets/_Project/Scenes"
+    }
+  ]
+}

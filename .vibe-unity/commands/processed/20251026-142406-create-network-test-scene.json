@@ -1,0 +1,21 @@
+{
+  "scene": {
+    "name": "NetworkTest",
+    "path": "Assets/_Project/Scenes",
+    "create": true
+  },
+  "commands": [
+    {
+      "action": "add-cube",
+      "name": "Ground",
+      "position": [0, -0.5, 0],
+      "scale": [20, 1, 20]
+    },
+    {
+      "action": "add-light",
+      "name": "Directional Light",
+      "type": "directional",
+      "rotation": [50, -30, 0]
+    }
+  ]
+}
