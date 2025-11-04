@@ -182,23 +182,59 @@ Completed:
 └── Basic UI (100%)
 
 In Progress:
-└── None (awaiting next milestone)
+└── Milestone 2: Teams + War Map (0%)
+    ├── Phase 1: Team System (0%)
+    ├── Phase 2: War Map Foundation (0%)
+    └── Phase 3: Integration (0%)
 
 Upcoming:
-├── War Map System (0%)
-├── Token/Squadron System (0%)
-├── RTS Integration (0%)
-└── Additional Factions (0%)
+├── Additional Factions (0%)
+└── Content & Polish (0%)
 ```
 
 **Milestone Breakdown:**
 - ✅ Milestone 1: Network Foundation (100%)
 - ✅ Milestone 1.5: Combat Systems (100%)
-- ⏳ Milestone 2: War Map Prototype (0%)
+- 🔄 Milestone 2: Teams + War Map (0%) ← **STARTING NOW**
 - ⏳ Milestone 3: Faction Diversity (0%)
-- ⏳ Milestone 4: Full Game Loop (0%)
+- ⏳ Milestone 4: Content & Polish (0%)
 
 **Overall Progress: ~25% to MVP**
+
+---
+
+## 🎯 MILESTONE 2: TEAMS + WAR MAP (Starting Nov 4, 2025)
+
+**Goal:** Complete game loop from war map to battle and back  
+**Timeline:** 3-4 weeks (25-30 hours)  
+**Scope:**
+- Blue vs Red team battles
+- King of the Hill gamemode
+- 5-node war map
+- Scene transitions (Map ↔ Battle)
+- Node ownership system
+- War victory conditions
+
+**Phases:**
+1. **Phase 1: Team Foundation** (Week 1)
+   - Team system and assignment
+   - Team spawn points
+   - King of the Hill gamemode
+   - Victory/defeat screens
+
+2. **Phase 2: War Map Foundation** (Week 2)
+   - War map scene
+   - Node system (5 nodes)
+   - Visual node ownership
+   - Battle context tracking
+
+3. **Phase 3: Integration** (Week 3)
+   - Simplified deployment
+   - Battle initiation from map
+   - Battle results update map
+   - War victory conditions
+
+**Deliverable:** Full game cycle - War Map → Battle → War Map
 
 ---
 

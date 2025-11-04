@@ -1,370 +1,419 @@
 # TODO - Elites and Pawns True
 
 **Last Updated:** November 4, 2025  
-**Current Status:** Milestone 1.5 Complete - Ready for Milestone 2
+**Current Focus:** Milestone 2 - Teams + War Map Integration
 
 ---
 
-## 🎯 PRIORITY LEVELS
+## 🎯 MILESTONE 2: BLUE VS RED + WAR MAP
 
-- 🔴 **CRITICAL** - Blocking issues, must fix immediately
-- 🟡 **HIGH** - Important features, should do soon
-- 🟢 **MEDIUM** - Nice to have, can wait
-- 🔵 **LOW** - Polish/optional, do when time allows
-
----
-
-## 🔴 CRITICAL (None!)
-
-**All blocking issues resolved!** ✅
+**Goal:** Complete game loop from war map to battle and back  
+**Timeline:** 3-4 weeks (25-30 hours)  
+**Teams:** Blue vs Red (Green comes later)
 
 ---
 
-## 🟡 HIGH PRIORITY
+## 🔴 PHASE 1: TEAM FOUNDATION (Week 1 - Priority)
 
-### **Quick Wins (1-2 hours)**
+### **Goal:** Blue vs Red teams with King of the Hill gamemode
 
-#### 1. **Add Crosshair** (15 min)
-- [ ] Create simple crosshair sprite (white cross)
-- [ ] Add UI Image to center of PlayerHUD_Canvas
-- [ ] Size: 32x32 pixels
-- [ ] Color: White with slight transparency (200 alpha)
+#### **1.1 Team System** (2 hours) 🔴 HIGH PRIORITY
+- [ ] Create TeamManager.cs
+  - Track Blue team players
+  - Track Red team players
+  - Assign players to teams on join (balance teams)
+  - Team scoring system
+- [ ] Update NetworkPlayer faction assignment
+  - Auto-assign to least populated team
+  - SyncVar for team membership
+- [ ] Team identification
+  - Team-colored materials (Blue/Red)
+  - Apply to player renderer on spawn
+  - Update nameplate with team color
 
-**Location:** `Assets/_Project/Scripts/UI/PlayerHUD.cs`  
-**Impact:** Better aiming feedback
-
----
-
-#### 2. **Create "Head" Tag** (5 min)
-- [ ] Edit → Project Settings → Tags & Layers
-- [ ] Add tag: "Head"
-- [ ] Apply to head collider on Player prefab
-
-**Impact:** Removes console warning, enables headshots
-
----
-
-#### 3. **Add Spawn Points** (20 min)
-- [ ] Create empty GameObjects in scene (4-6 points)
-- [ ] Name them "SpawnPoint_1", "SpawnPoint_2", etc.
-- [ ] Spread them around the map
-- [ ] Update NetworkManager to use them
-
-**Location:** NetworkTest scene  
-**Impact:** Players spawn in different locations
+**Files to modify:**
+- `ElitesNetworkManager.cs` - Team balancing
+- `NetworkPlayer.cs` - Team assignment
+- Create: `TeamManager.cs`
 
 ---
 
-#### 4. **Add Muzzle Flash** (30 min)
-- [ ] Create simple particle system or sprite effect
-- [ ] Spawn at firePoint when shooting
-- [ ] Auto-destroy after 0.1 seconds
-- [ ] Add to BaseWeapon.RpcOnWeaponFired()
+#### **1.2 Team Spawn System** (1 hour) 🔴 HIGH PRIORITY
+- [ ] Create spawn point system
+  - SpawnPoint.cs with team assignment
+  - Create 4-6 spawn points per team in NetworkTest scene
+  - Position Blue spawns on one side, Red on opposite
+- [ ] Update player spawning
+  - ElitesNetworkManager picks spawn based on team
+  - Spawn at random point within team area
 
-**Impact:** Visual feedback when shooting
-
----
-
-### **Testing & Polish (1 hour)**
-
-#### 5. **Build & Test with Real Client** (30 min)
-- [ ] Build executable (File → Build Settings)
-- [ ] Test Host (executable) + Client (Unity Editor)
-- [ ] Verify all features work in build
-- [ ] Check for build-specific issues
-
-**Impact:** Ensures game works outside editor
+**Files to modify:**
+- `ElitesNetworkManager.cs` - Spawn logic
+- Create: `SpawnPoint.cs`
+- Scene: NetworkTest.unity - Add spawn points
 
 ---
 
-#### 6. **Add Basic Sound Effects** (30 min)
-- [ ] Find/create free sound effects:
-  - Gunshot (assault rifle)
-  - Reload
-  - Hit impact
-  - Death
-- [ ] Add AudioSource to weapons
-- [ ] Play sounds in appropriate RPC methods
+#### **1.3 Team HUD** (1 hour) 🟡 MEDIUM PRIORITY
+- [ ] Show team indicator
+  - Add team name/color to HUD
+  - Position: top-center
+  - "BLUE TEAM" or "RED TEAM"
+- [ ] Optional: Team roster
+  - List of team members
+  - Show player count (4v4, 3v5, etc.)
 
-**Location:** `Assets/_Project/Audio/` (create folder)  
-**Impact:** Much better game feel
-
----
-
-## 🟢 MEDIUM PRIORITY
-
-### **Milestone 2: War Map Prototype** (2-3 weeks)
-
-#### 7. **Create War Map Scene** (2 hours)
-- [ ] New scene: "WarMap.unity"
-- [ ] 2D or 3D map representation
-- [ ] 5 node positions (cities)
-- [ ] Visual connections between nodes
-- [ ] Camera setup for map view
-
-**Design:** See GDD.md Section 3.2
+**Files to modify:**
+- `PlayerHUD.cs` - Add team display
 
 ---
 
-#### 8. **Node System** (4 hours)
-- [ ] Create Node.cs script
-  - Node type (Minor City, Major City, Factory)
-  - Owner faction
-  - Connected nodes
-  - Battle status
-- [ ] Create NodeManager.cs
-  - Track all nodes
-  - Handle ownership changes
-- [ ] Visual indicators for ownership
+#### **1.4 King of the Hill Gamemode** (3-4 hours) 🔴 HIGH PRIORITY
+- [ ] Create ControlPoint.cs
+  - Trigger zone in center of map
+  - Detect players in zone
+  - Track capturing team
+  - Capture progress (0-100%)
+  - Contested state (both teams present)
+- [ ] Create GameModeManager.cs
+  - Track control point ownership
+  - Team scores
+  - Win condition (hold for 180 seconds OR reach 300 points)
+  - Game timer
+- [ ] Control Point UI
+  - Capture progress bar
+  - Current owner indicator
+  - Team scores (top of screen)
+  - Timer
+- [ ] Victory/Defeat Screen
+  - Show winning team
+  - Show final scores
+  - "Return to War Map" button (placeholder)
+  - "Rematch" option
 
-**Impact:** Foundation for War Map gameplay
-
----
-
-#### 9. **Token System Backend** (3 hours)
-- [ ] Create Token.cs enum (Troops, Light Vehicle, Heavy Vehicle, etc.)
-- [ ] Create Squadron.cs class
-  - Contains multiple tokens
-  - Faction ownership
-  - Node location
-- [ ] Create TokenManager.cs
-  - Track all squadrons
-  - Validate deployments
-  - Handle token consumption
-
-**Impact:** RTS resource management
-
----
-
-#### 10. **Basic Deployment UI** (3 hours)
-- [ ] Create deployment panel UI
-- [ ] Show available tokens for faction
-- [ ] Click node to select deployment target
-- [ ] Select tokens to deploy
-- [ ] "Deploy" button to confirm
-
-**Impact:** Player can interact with War Map
+**Files to create:**
+- `ControlPoint.cs`
+- `GameModeManager.cs`
+- `GameModeUI.cs`
+- Update: NetworkTest.unity - Add control point
 
 ---
 
-#### 11. **Battle Initiation** (2 hours)
-- [ ] Detect when nodes are contested
-- [ ] Trigger transition to FPS battle
-- [ ] Pass squadron data to battle scene
-- [ ] Load NetworkTest scene with correct players
+### **Phase 1 Deliverable:**
+✅ Functional Blue vs Red team battles  
+✅ King of the Hill gamemode working  
+✅ Teams are balanced and spawn separately  
+✅ Victory/defeat conditions functional  
 
-**Impact:** Connects War Map to FPS battles
-
----
-
-### **Additional Weapons** (4 hours)
-
-#### 12. **Add Pistol** (1 hour)
-- [ ] Create Pistol WeaponData ScriptableObject
-  - Lower damage (20)
-  - Faster fire rate
-  - Smaller magazine (12 rounds)
-- [ ] Create pistol prefab
-- [ ] Add to WeaponManager weapons list
+**Test:** 4 players (2 Blue, 2 Red) fight over control point
 
 ---
 
-#### 13. **Add Shotgun** (1.5 hours)
-- [ ] Create Shotgun WeaponData
-  - High damage per pellet (15)
-  - Multiple projectiles per shot (8)
-  - Wide spread
-  - Slow fire rate
-- [ ] Test spread pattern
-- [ ] Balance damage falloff
+## 🟡 PHASE 2: WAR MAP FOUNDATION (Week 2)
+
+### **Goal:** Basic war map that tracks node ownership
+
+#### **2.1 War Map Scene** (3 hours) 🔴 HIGH PRIORITY
+- [ ] Create new scene: WarMap.unity
+- [ ] Camera setup (top-down or isometric view)
+- [ ] Create 5 node GameObjects
+  - Position them like a simple map
+  - Label: HomeBase_Blue, City_A, City_B, City_C, HomeBase_Red
+  - Visual connections (lines between nodes)
+- [ ] Basic UI layout
+  - Node info panel
+  - Deploy button (placeholder)
+  - "Start Battle" button
+
+**Files to create:**
+- Scene: `WarMap.unity`
+- `WarMapCamera.cs` - Camera controls
 
 ---
 
-#### 14. **Weapon Switching Animation** (1.5 hours)
-- [ ] Simple fade in/out or position tween
-- [ ] Disable shooting during switch
-- [ ] Add weapon equip sound
+#### **2.2 Node System** (3 hours) 🔴 HIGH PRIORITY
+- [ ] Create Node.cs
+  - NodeType enum (HomeBase, City, Factory)
+  - Owner (Blue/Red/Neutral)
+  - Connected nodes list
+  - Battle status (Peaceful/Active/Concluded)
+  - Click detection
+- [ ] Create NodeManager.cs (NetworkBehaviour)
+  - Track all 5 nodes
+  - SyncList of node states
+  - Update node ownership (server-authoritative)
+  - Check victory condition (control 3/5 non-home nodes)
+- [ ] Visual feedback
+  - Node color changes with ownership
+  - Highlight on hover
+  - Show battle status (icon/effect)
+
+**Files to create:**
+- `Node.cs`
+- `NodeManager.cs`
+- `NodeVisualizer.cs` - Handle node appearance
 
 ---
 
-## 🔵 LOW PRIORITY (Polish)
+#### **2.3 Battle Context System** (2 hours) 🟡 MEDIUM PRIORITY
+- [ ] Create BattleContext.cs (static/singleton)
+  - Store: which node is being fought over
+  - Store: attacking team, defending team
+  - Accessible from both scenes
+- [ ] Track battle results
+  - Winner faction
+  - Player performance stats (optional)
+- [ ] Pass data between scenes
+  - War Map → Battle: Set battle context
+  - Battle → War Map: Return result
 
-### **Visual Polish**
-
-#### 15. **Hit Markers** (30 min)
-- [ ] Show red X on successful hit
-- [ ] Flash for 0.2 seconds
-- [ ] Position at crosshair center
-
----
-
-#### 16. **Damage Indicator** (45 min)
-- [ ] Red vignette flash when taking damage
-- [ ] Direction indicator (red edge of screen)
-- [ ] Fade out over 0.5 seconds
-
----
-
-#### 17. **Kill Feed** (1 hour)
-- [ ] Top-right corner UI
-- [ ] Show last 5 kills
-- [ ] Format: "Player1 [weapon] Player2"
-- [ ] Fade out after 5 seconds
+**Files to create:**
+- `BattleContext.cs`
 
 ---
 
-### **Map & Environment**
+#### **2.4 Scene Transition** (2-3 hours) 🔴 HIGH PRIORITY
+- [ ] War Map → Battle Scene
+  - Click node to select
+  - "Attack" button initiates battle
+  - Load NetworkTest scene
+  - Pass battle context
+  - Spawn players for both teams
+- [ ] Battle → War Map
+  - Battle ends (victory screen)
+  - "Return to War Map" button
+  - Load WarMap scene
+  - Update node ownership based on result
+- [ ] Handle multiplayer scene transitions
+  - Server controls scene loading
+  - All clients load together
+  - Maintain network connection
 
-#### 18. **Better Test Environment** (2 hours)
-- [ ] Add cover objects (walls, crates, buildings)
-- [ ] Add lighting (directional light + baked)
-- [ ] Add ground textures
-- [ ] Create simple skybox
-
----
-
-#### 19. **Multiple Maps** (per map: 3 hours)
-- [ ] Urban map (buildings, streets)
-- [ ] Forest map (trees, hills)
-- [ ] Desert map (open, dunes, rocks)
-
----
-
-### **Player Experience**
-
-#### 20. **Player Customization** (2 hours)
-- [ ] Name input on join
-- [ ] Basic player colors/skins
-- [ ] Save preferences locally
+**Files to modify:**
+- `ElitesNetworkManager.cs` - Scene management
+- `GameModeManager.cs` - Battle completion
+- Create: `SceneTransitionManager.cs`
 
 ---
 
-#### 21. **Settings Menu** (2 hours)
-- [ ] Mouse sensitivity slider
-- [ ] Volume controls
-- [ ] Graphics quality settings
-- [ ] Key rebinding
+### **Phase 2 Deliverable:**
+✅ War map with 5 nodes visible  
+✅ Nodes show ownership (Blue/Red/Neutral)  
+✅ Can click node to start battle  
+✅ Battle result updates node ownership  
+
+**Test:** Start on war map, click node, battle loads, win/lose updates map
 
 ---
 
-#### 22. **Death Camera** (1 hour)
-- [ ] Spectate killer for 3 seconds
-- [ ] Show "You were killed by [player]"
-- [ ] Show respawn countdown
+## 🟢 PHASE 3: WAR MAP INTEGRATION (Week 3)
+
+### **Goal:** Complete game loop working smoothly
+
+#### **3.1 Simplified Deployment** (4 hours) 🟡 MEDIUM PRIORITY
+- [ ] Starting state
+  - Blue owns HomeBase_Blue + 1 adjacent city
+  - Red owns HomeBase_Red + 1 adjacent city
+  - 1 city is neutral
+- [ ] Attack mechanics (simplified)
+  - Can only attack adjacent nodes
+  - Click adjacent node to attack
+  - No token costs (simplified for MVP)
+  - Attacking initiates battle
+- [ ] Basic token backend
+  - Each team has "troops" count (placeholder)
+  - Decrease on attack (optional)
+  - Increase over time (optional)
+
+**Files to create:**
+- `DeploymentManager.cs`
+- `DeploymentUI.cs`
 
 ---
 
-## 📋 BACKLOG (Future Milestones)
+#### **3.2 Battle Initiation Flow** (2 hours) 🔴 HIGH PRIORITY
+- [ ] Select attackable node
+  - Highlight adjacent nodes
+  - Show "Attack" button when valid node selected
+- [ ] Both teams join battle
+  - Attacking team = offensive spawn
+  - Defending team = defensive spawn
+- [ ] Battle loads with context
+  - KOTH objective at attacked node
+  - Correct team spawns
 
-### **Milestone 3: Faction Diversity** (3-4 weeks)
-- RED faction implementation
-- GREEN faction implementation
-- Faction-specific abilities/weapons
-- Balanced gameplay testing
-
-### **Milestone 4: Full Game Loop** (4-5 weeks)
-- War Map → Battle → War Map cycle
-- Victory conditions
-- Match end screen
-- Match replay system
-
-### **Milestone 5: Content & Polish** (ongoing)
-- More weapons (sniper, SMG, LMG)
-- More maps
-- Vehicle system
-- Advanced RTS features
-- Progression system
+**Files to modify:**
+- `NodeManager.cs` - Node selection
+- `BattleContext.cs` - Store attacker/defender
 
 ---
 
-## 🛠️ TECHNICAL DEBT
+#### **3.3 Victory Conditions** (2 hours) 🟡 MEDIUM PRIORITY
+- [ ] Battle result handling
+  - Attackers win = capture node
+  - Defenders win = keep node, repel attack
+  - Update NodeManager with result
+- [ ] War victory check
+  - Check if one team controls 3/5 nodes (or 4/5)
+  - Show war victory screen
+  - Option to restart campaign
+- [ ] Persistent war state
+  - Track which nodes are owned
+  - Save/load war map state (optional)
 
-### **Refactoring Needed** (Low Priority)
-- [ ] Move magic numbers to config files
-- [ ] Create proper weapon spawn system
-- [ ] Refactor PlayerHUD to use events more
-- [ ] Add object pooling for projectiles
-- [ ] Improve network bandwidth (compress SyncVars)
+**Files to modify:**
+- `NodeManager.cs` - Victory checking
+- `GameModeManager.cs` - Battle result reporting
+- Create: `WarVictoryScreen.cs`
+
+---
+
+#### **3.4 Match Flow Polish** (2 hours) 🟢 LOW PRIORITY
+- [ ] Main menu scene
+  - "Start War" button → War Map
+  - "Quick Battle" button → Battle scene directly
+  - Settings (optional)
+- [ ] Post-battle summary
+  - Show battle stats
+  - Show war map impact
+  - Highlight captured/defended node
+- [ ] Smooth transitions
+  - Loading screens between scenes
+  - Fade in/out effects
+  - Network reconnection handling
+
+**Files to create:**
+- Scene: `MainMenu.unity`
+- `MainMenuManager.cs`
+- `LoadingScreen.cs`
+
+---
+
+### **Phase 3 Deliverable:**
+✅ Complete game loop functional  
+✅ Can play multiple battles in sequence  
+✅ War map updates after each battle  
+✅ War victory condition works  
+
+**Test:** Full campaign - attack nodes, win battles, capture map
+
+---
+
+## 📋 QUICK WINS (Can do anytime)
+
+### **Visual Polish** (30 min each)
+- [ ] Add crosshair to HUD
+- [ ] Add muzzle flash effect
+- [ ] Add hit markers (red X on hit)
+- [ ] Add damage indicator (red vignette)
+- [ ] Death camera (spectate killer)
+
+### **Audio** (1 hour total)
+- [ ] Gunshot sounds
+- [ ] Reload sounds  
+- [ ] Hit sounds
+- [ ] Death sounds
+- [ ] Footstep sounds
+
+### **Environment** (2 hours)
+- [ ] Add cover objects to battle map
+- [ ] Better lighting
+- [ ] Ground textures
+- [ ] Simple skybox
+
+---
+
+## 🔵 BACKLOG (Post-MVP)
+
+### **After Milestone 2:**
+- [ ] Add Green faction (3rd team)
+- [ ] More battle maps (urban, forest, desert)
+- [ ] More gamemodes (Team Deathmatch, Capture the Flag)
+- [ ] Complex token system (costs, resources, types)
+- [ ] Multiple simultaneous battles
+- [ ] Larger war map (10+ nodes)
+- [ ] Vehicles
+- [ ] More weapons
+- [ ] Player progression/unlocks
+
+---
+
+## 📊 MILESTONE 2 PROGRESS TRACKER
+
+```
+Phase 1: Teams + KOTH        [░░░░░░░░░░░░░░░░░░░░]   0%
+Phase 2: War Map Foundation  [░░░░░░░░░░░░░░░░░░░░]   0%
+Phase 3: Integration         [░░░░░░░░░░░░░░░░░░░░]   0%
+
+Overall Milestone 2:         [░░░░░░░░░░░░░░░░░░░░]   0%
+```
+
+---
+
+## 🎯 IMMEDIATE NEXT STEPS
+
+### **Next Session (2-3 hours):**
+**Focus:** Start Phase 1 - Team System
+
+1. Create TeamManager.cs (30 min)
+2. Update player faction assignment (30 min)
+3. Add team-colored materials (30 min)
+4. Create spawn point system (1 hour)
+5. Test Blue vs Red teams (30 min)
+
+**Goal:** Players spawn on different teams with different colors
+
+---
+
+### **Session After That (3-4 hours):**
+**Focus:** King of the Hill gamemode
+
+1. Create ControlPoint.cs
+2. Create GameModeManager.cs
+3. Add control point to scene
+4. Implement capture mechanics
+5. Add victory/defeat conditions
+
+**Goal:** Functional KOTH gamemode
 
 ---
 
 ## 📝 NOTES
 
-### **Before Starting Each Task:**
-1. Read relevant GDD.md sections
-2. Check TDD.md for architecture guidelines
-3. Update PROGRESS.md when complete
-4. Test thoroughly before committing
+### **Design Decisions:**
+- **2 teams only** for MVP (Blue vs Red)
+- **Simple token system** (just track count, no complex resource management)
+- **One battle at a time** (no simultaneous battles)
+- **5-node war map** (small, manageable)
+- **KOTH only** for now (other modes later)
 
-### **Testing Checklist (After Major Changes):**
-- [ ] Works in Editor (single player)
-- [ ] Works with Host + Client
-- [ ] No console errors
-- [ ] Builds successfully
-- [ ] Performance acceptable (60 FPS)
+### **Testing Strategy:**
+- Test each phase independently
+- Phase 1: Need 4+ players for team balance testing
+- Phase 2: Can test solo (war map visualization)
+- Phase 3: Need 4+ players for full game loop
 
-### **Commit Guidelines:**
-- Make commits atomic (one feature at a time)
-- Write clear commit messages
-- Test before committing
-- Update documentation
-
----
-
-## 🎯 SUGGESTED SESSION GOALS
-
-### **Next Session (2-3 hours):**
-1. Add crosshair (15 min)
-2. Create "Head" tag (5 min)
-3. Add spawn points (20 min)
-4. Add muzzle flash (30 min)
-5. Build and test (30 min)
-6. Add basic sounds (30 min)
-
-**Result:** Polished combat experience
+### **Success Criteria:**
+- [ ] Teams are balanced (equal players)
+- [ ] KOTH is fun and functional
+- [ ] War map is clear and intuitive
+- [ ] Scene transitions work smoothly
+- [ ] Node ownership updates correctly
+- [ ] War victory condition triggers
+- [ ] No critical bugs or crashes
 
 ---
 
-### **Following Session (3-4 hours):**
-Start Milestone 2 - War Map:
-1. Create War Map scene
-2. Implement node system
-3. Create basic deployment UI
+## 🚀 READY TO START!
 
-**Result:** War Map prototype
-
----
-
-## 💡 QUICK WINS FOR POLISH
-
-**< 30 minutes each:**
-- Add death sound effect
-- Add respawn visual effect (fade in)
-- Add footstep sounds
-- Add health regeneration (slow)
-- Add sprint stamina system
-- Add weapon sway (slight camera movement)
-- Add recoil pattern (camera kick)
-
----
-
-## 📊 MILESTONE TRACKING
-
-```
-Milestone 1:   ████████████████████ 100% ✅
-Milestone 1.5: ████████████████████ 100% ✅
-Milestone 2:   ░░░░░░░░░░░░░░░░░░░░   0% ⏳
-Milestone 3:   ░░░░░░░░░░░░░░░░░░░░   0% ⏳
-Milestone 4:   ░░░░░░░░░░░░░░░░░░░░   0% ⏳
-```
-
-**MVP Completion:** ~25%
+**Current Status:** All Milestone 1 complete, ready for Milestone 2  
+**Next Task:** Implement TeamManager.cs  
+**Estimated Time to MVP:** 3-4 weeks
 
 ---
 
 *This file is your development roadmap.  
-Check items off as you complete them!  
-Add new tasks as needed.*
+Update progress as you complete each task!*
 
-**Last updated by:** Claude  
-**Next review:** After Milestone 2 kickoff
+**Last updated:** November 4, 2025  
+**Next review:** End of Phase 1 (Team System complete)

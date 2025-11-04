@@ -133,16 +133,26 @@ Player (NetworkIdentity, CharacterController)
 
 ## 🎯 NEXT PRIORITIES
 
-**Quick Wins (1-2 hours):**
-1. Add crosshair (simple UI image)
-2. Create "Head" tag for headshots
-3. Add multiple spawn points
-4. Add muzzle flash effect
+**Milestone 2: Teams + War Map (Starting Now)**
 
-**Milestone 2 (War Map):**
-- Visual 5-node war map
-- Token/squadron system
-- RTS-style deployment
+**Phase 1: Team Foundation** (Week 1 - 6-8 hours)
+1. Team system (Blue vs Red assignment)
+2. Team spawn points (separate areas)
+3. King of the Hill gamemode
+4. Victory/defeat screens
+
+**Phase 2: War Map** (Week 2 - 10-12 hours)
+1. Create WarMap scene
+2. 5-node system with ownership
+3. Visual feedback (Blue/Red/Neutral)
+4. Battle initiation from map
+
+**Phase 3: Integration** (Week 3 - 8-10 hours)
+1. Complete game loop (Map → Battle → Map)
+2. Battle results update map
+3. War victory conditions
+
+**Goal:** Full campaign playable in 3-4 weeks
 
 ---
 
