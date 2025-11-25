@@ -1,7 +1,7 @@
 # Development Progress - Elites and Pawns True
 
 **Last Updated:** November 4, 2025  
-**Current Milestone:** Milestone 1.5 - Combat Complete ✅
+**Current Milestone:** Milestone 2 Phase 1 - Team System 🔄
 
 ---
 
@@ -173,7 +173,7 @@
 ## 📈 PROGRESS TO MVP
 
 ```
-[████████████████████░░░░░░░░░░] 55%
+[█████████████████████░░░░░░░░░] 58%
 
 Completed:
 ├── Network Foundation (100%)
@@ -182,8 +182,14 @@ Completed:
 └── Basic UI (100%)
 
 In Progress:
-└── Milestone 2: Teams + War Map (0%)
-    ├── Phase 1: Team System (0%)
+└── Milestone 2: Teams + War Map (15%)
+    ├── Phase 1: Team System (40%)
+    │   ├── ✅ Team assignment
+    │   ├── ✅ Team spawn points
+    │   ├── ✅ Team HUD
+    │   ├── ✅ Friendly fire
+    │   ├── ⏳ King of the Hill
+    │   └── ⏳ Victory screens
     ├── Phase 2: War Map Foundation (0%)
     └── Phase 3: Integration (0%)
 
@@ -203,7 +209,7 @@ Upcoming:
 
 ---
 
-## 🎯 MILESTONE 2: TEAMS + WAR MAP (Starting Nov 4, 2025)
+## 🎯 MILESTONE 2: TEAMS + WAR MAP (Started Nov 4, 2025)
 
 **Goal:** Complete game loop from war map to battle and back  
 **Timeline:** 3-4 weeks (25-30 hours)  
@@ -216,11 +222,13 @@ Upcoming:
 - War victory conditions
 
 **Phases:**
-1. **Phase 1: Team Foundation** (Week 1)
-   - Team system and assignment
-   - Team spawn points
-   - King of the Hill gamemode
-   - Victory/defeat screens
+1. **Phase 1: Team Foundation** (Week 1) 🔄 IN PROGRESS
+   - ✅ Team system and assignment
+   - ✅ Team spawn points
+   - ✅ Team HUD display
+   - ✅ Friendly fire protection
+   - ⏳ King of the Hill gamemode
+   - ⏳ Victory/defeat screens
 
 2. **Phase 2: War Map Foundation** (Week 2)
    - War map scene
@@ -273,8 +281,30 @@ Upcoming:
 
 ## 📝 SESSION NOTES
 
+### **November 4, 2025 - Team System Implementation**
+**Duration:** ~1 hour (Session 2)  
+**Focus:** Implementing team assignment and spawn system
+
+**Completed:**
+1. TeamManager.cs - Centralized team tracking and scoring
+2. SpawnPoint.cs - Team-specific spawn locations
+3. Updated ElitesNetworkManager for team balancing
+4. Team HUD display (Blue/Red team indicator)
+5. Friendly fire protection
+6. TeamSystemDebugger for testing
+
+**Technical Details:**
+- TeamManager singleton with NetworkBehaviour
+- SyncList for team member tracking
+- SyncVar for team scores
+- Auto-balance on player join
+- Team-colored spawn points with gizmos
+- Updated PlayerHUD with team display
+
+**Result:** Players now spawn on Blue or Red teams with separate spawn areas!
+
 ### **November 4, 2025 - HUD & Projectile Fixes**
-**Duration:** ~3 hours  
+**Duration:** ~3 hours (Session 1)  
 **Focus:** Debugging UI and projectile visibility for clients
 
 **Issues Fixed:**

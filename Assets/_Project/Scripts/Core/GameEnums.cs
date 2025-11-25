@@ -14,6 +14,17 @@ namespace ElitesAndPawns.Core
     }
 
     /// <summary>
+    /// Alias for FactionType to support different naming conventions
+    /// </summary>
+    public enum Team
+    {
+        None = 0,
+        Blue = 1,   // The Architects - Tactical, deployables, team-focused
+        Red = 2,    // The Destroyers - Heavy damage, environmental destruction
+        Green = 3   // The Hunters - Mobile, long-range, fragile
+    }
+
+    /// <summary>
     /// Overall state of the game
     /// </summary>
     public enum GameState

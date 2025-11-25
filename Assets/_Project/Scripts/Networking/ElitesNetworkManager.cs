@@ -1,5 +1,8 @@
 using Mirror;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
+using ElitesAndPawns.Core;
 
 namespace ElitesAndPawns.Networking
 {
@@ -13,14 +16,18 @@ namespace ElitesAndPawns.Networking
         [SerializeField] private int maxPlayersPerTeam = 8; // 8v8 = 16 total
         [SerializeField] private bool autoAssignFaction = true;
         [SerializeField] private bool autoRegisterProjectiles = true;
+        [SerializeField] private bool useTeamSpawnPoints = true;
 
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
 
-        // Track connected players per faction
-        private int bluePlayerCount = 0;
-        private int redPlayerCount = 0;
-        private int greenPlayerCount = 0;
+        // Team Manager reference
+        private SimpleTeamManager teamManager;
+        
+        // Spawn points cache
+        private List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
+        private List<SpawnPoint> blueSpawnPoints = new List<SpawnPoint>();
+        private List<SpawnPoint> redSpawnPoints = new List<SpawnPoint>();
 
         public override void Awake()
         {
@@ -48,62 +55,114 @@ namespace ElitesAndPawns.Networking
             }
         }
 
-        private void OnDestroy()
+        public override void OnDestroy()
         {
             // Debug: Log when this NetworkManager is destroyed
             Debug.LogWarning($"[ElitesNetworkManager] OnDestroy called on GameObject: {gameObject.name} (InstanceID: {GetInstanceID()})");
             
             // Log stack trace to see WHO is destroying this
             Debug.LogWarning($"[ElitesNetworkManager] Destroyed from:\n{System.Environment.StackTrace}");
+            
+            // Call base to ensure proper cleanup
+            base.OnDestroy();
         }
 
         public override void OnStartServer()
         {
             base.OnStartServer();
             
+            // Get or create TeamManager
+            teamManager = SimpleTeamManager.Instance;
+            if (teamManager == null)
+            {
+                GameObject tmGo = new GameObject("SimpleTeamManager");
+                teamManager = tmGo.AddComponent<SimpleTeamManager>();
+                Debug.Log("[ElitesNetworkManager] Created SimpleTeamManager instance");
+            }
+            
+            // Find and cache spawn points
+            CacheSpawnPoints();
+            
             if (debugMode)
             {
                 Debug.Log("[ElitesNetworkManager] Server started");
+                Debug.Log($"[ElitesNetworkManager] Found {spawnPoints.Count} total spawn points " +
+                         $"(Blue: {blueSpawnPoints.Count}, Red: {redSpawnPoints.Count})");
             }
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
-            // Spawn player at appropriate position
-            Transform startPos = GetStartPosition();
-            GameObject player = startPos != null
-                ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-                : Instantiate(playerPrefab);
+            // Get balanced team assignment
+            FactionType faction = FactionType.Blue;
+            if (autoAssignFaction && teamManager != null)
+            {
+                faction = teamManager.GetBalancedTeam();
+            }
+            
+            // Get spawn position for the team
+            Transform startPos = GetTeamSpawnPosition(faction);
+            
+            // Spawn player at team-specific position
+            GameObject player;
+            if (startPos != null)
+            {
+                player = Instantiate(playerPrefab, startPos.position, startPos.rotation);
+            }
+            else
+            {
+                // Fallback to default spawn if no team spawn points found
+                startPos = GetStartPosition();
+                player = startPos != null
+                    ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
+                    : Instantiate(playerPrefab);
+                    
+                if (debugMode)
+                {
+                    Debug.LogWarning($"[ElitesNetworkManager] No spawn point found for {faction} team, using default");
+                }
+            }
 
             // Add player to connection
             NetworkServer.AddPlayerForConnection(conn, player);
 
-            // Assign faction (MVP: Blue only, but ready for expansion)
-            if (autoAssignFaction && player.TryGetComponent<NetworkPlayer>(out var networkPlayer))
+            // Assign faction and add to team
+            if (player.TryGetComponent<NetworkPlayer>(out var networkPlayer))
             {
-                Core.FactionType faction = GetBalancedFaction();
                 networkPlayer.SetFaction(faction);
+                
+                // Add to TeamManager tracking
+                if (teamManager != null)
+                {
+                    teamManager.AddPlayerToTeam(networkPlayer.netId, faction);
+                }
 
                 if (debugMode)
                 {
                     Debug.Log($"[ElitesNetworkManager] Player connected. Assigned to {faction} faction. " +
-                              $"Total players - Blue: {bluePlayerCount}, Red: {redPlayerCount}, Green: {greenPlayerCount}");
+                              $"Team counts - Blue: {teamManager?.BluePlayerCount ?? 0}, " +
+                              $"Red: {teamManager?.RedPlayerCount ?? 0}");
                 }
             }
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
-            // Track faction before disconnect
+            // Remove from TeamManager tracking
             if (conn.identity != null && conn.identity.TryGetComponent<NetworkPlayer>(out var networkPlayer))
             {
-                Core.FactionType faction = networkPlayer.Faction;
-                DecrementFactionCount(faction);
+                FactionType faction = networkPlayer.Faction;
+                
+                if (teamManager != null)
+                {
+                    teamManager.RemovePlayerFromTeams(networkPlayer.netId);
+                }
 
                 if (debugMode)
                 {
                     Debug.Log($"[ElitesNetworkManager] Player from {faction} faction disconnected. " +
-                              $"Remaining - Blue: {bluePlayerCount}, Red: {redPlayerCount}, Green: {greenPlayerCount}");
+                              $"Remaining - Blue: {teamManager?.BluePlayerCount ?? 0}, " +
+                              $"Red: {teamManager?.RedPlayerCount ?? 0}");
                 }
             }
 
@@ -149,52 +208,74 @@ namespace ElitesAndPawns.Networking
         }
 
         /// <summary>
-        /// Get the least populated faction for team balance
-        /// MVP: Returns Blue only
+        /// Cache all spawn points in the scene
         /// </summary>
-        private Core.FactionType GetBalancedFaction()
+        private void CacheSpawnPoints()
         {
-            // MVP: Only Blue faction available
-            bluePlayerCount++;
-            return Core.FactionType.Blue;
-
-            // Post-MVP: Balance across all factions
-            /*
-            if (bluePlayerCount <= redPlayerCount && bluePlayerCount <= greenPlayerCount)
+            spawnPoints.Clear();
+            blueSpawnPoints.Clear();
+            redSpawnPoints.Clear();
+            
+            SpawnPoint[] allSpawnPoints = FindObjectsOfType<SpawnPoint>();
+            
+            foreach (var sp in allSpawnPoints)
             {
-                bluePlayerCount++;
-                return Core.FactionType.Blue;
+                if (!sp.IsActive) continue;
+                
+                spawnPoints.Add(sp);
+                
+                if (sp.TeamOwner == FactionType.Blue)
+                {
+                    blueSpawnPoints.Add(sp);
+                }
+                else if (sp.TeamOwner == FactionType.Red)
+                {
+                    redSpawnPoints.Add(sp);
+                }
             }
-            else if (redPlayerCount <= greenPlayerCount)
-            {
-                redPlayerCount++;
-                return Core.FactionType.Red;
-            }
-            else
-            {
-                greenPlayerCount++;
-                return Core.FactionType.Green;
-            }
-            */
         }
-
+        
         /// <summary>
-        /// Decrement faction player count when player leaves
+        /// Get a spawn position for a specific team
         /// </summary>
-        private void DecrementFactionCount(Core.FactionType faction)
+        private Transform GetTeamSpawnPosition(FactionType team)
         {
-            switch (faction)
+            if (!useTeamSpawnPoints)
             {
-                case Core.FactionType.Blue:
-                    bluePlayerCount = Mathf.Max(0, bluePlayerCount - 1);
-                    break;
-                case Core.FactionType.Red:
-                    redPlayerCount = Mathf.Max(0, redPlayerCount - 1);
-                    break;
-                case Core.FactionType.Green:
-                    greenPlayerCount = Mathf.Max(0, greenPlayerCount - 1);
-                    break;
+                return GetStartPosition();
             }
+            
+            List<SpawnPoint> teamSpawns = team switch
+            {
+                FactionType.Blue => blueSpawnPoints,
+                FactionType.Red => redSpawnPoints,
+                _ => spawnPoints
+            };
+            
+            // If no team-specific spawns, try neutral spawns
+            if (teamSpawns.Count == 0)
+            {
+                teamSpawns = spawnPoints.Where(sp => sp.TeamOwner == FactionType.None).ToList();
+            }
+            
+            // Pick a random spawn point from the available ones
+            if (teamSpawns.Count > 0)
+            {
+                SpawnPoint spawnPoint = teamSpawns[Random.Range(0, teamSpawns.Count)];
+                
+                // Create a temporary transform at the spawn position
+                GameObject temp = new GameObject($"TempSpawn_{team}");
+                temp.transform.position = spawnPoint.GetSpawnPosition();
+                temp.transform.rotation = spawnPoint.GetSpawnRotation();
+                Transform result = temp.transform;
+                
+                // Clean up after a frame
+                Destroy(temp, 0.1f);
+                
+                return result;
+            }
+            
+            return null;
         }
 
         /// <summary>
@@ -208,9 +289,13 @@ namespace ElitesAndPawns.Networking
         /// <summary>
         /// Get current player counts per faction
         /// </summary>
-        public (int blue, int red, int green) GetFactionCounts()
+        public (int blue, int red) GetFactionCounts()
         {
-            return (bluePlayerCount, redPlayerCount, greenPlayerCount);
+            if (teamManager != null)
+            {
+                return (teamManager.BluePlayerCount, teamManager.RedPlayerCount);
+            }
+            return (0, 0);
         }
     }
 }

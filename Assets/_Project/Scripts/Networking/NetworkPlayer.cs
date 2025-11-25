@@ -1,5 +1,6 @@
 using Mirror;
 using UnityEngine;
+using System.Collections;
 
 namespace ElitesAndPawns.Networking
 {
@@ -18,9 +19,6 @@ namespace ElitesAndPawns.Networking
 
         [SyncVar]
         [SerializeField] private int playerID;
-
-        [Header("Debug")]
-        [SerializeField] private bool debugMode = true;
 
         // Components (cached)
         private Player.PlayerController playerController;
@@ -41,12 +39,22 @@ namespace ElitesAndPawns.Networking
         public override void OnStartLocalPlayer()
         {
             base.OnStartLocalPlayer();
-
-            if (debugMode)
+            
+            // Delay setup to ensure client is ready
+            StartCoroutine(DelayedLocalPlayerSetup());
+        }
+        
+        private System.Collections.IEnumerator DelayedLocalPlayerSetup()
+        {
+            // Wait a frame to ensure everything is initialized
+            yield return null;
+            
+            // Wait for client to be ready
+            while (!NetworkClient.ready)
             {
-                Debug.Log($"[NetworkPlayer] Local player started: {playerName} ({faction})");
+                yield return new WaitForSeconds(0.1f);
             }
-
+            
             // Setup local player specifics (camera, input, etc.)
             SetupLocalPlayer();
         }
@@ -54,11 +62,6 @@ namespace ElitesAndPawns.Networking
         public override void OnStartClient()
         {
             base.OnStartClient();
-
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Client started for player: {playerName} ({faction})");
-            }
 
             // Apply faction visuals
             ApplyFactionVisuals();
@@ -71,11 +74,6 @@ namespace ElitesAndPawns.Networking
         public void SetFaction(Core.FactionType newFaction)
         {
             faction = newFaction;
-
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Faction set to: {newFaction}");
-            }
         }
 
         /// <summary>
@@ -92,12 +90,17 @@ namespace ElitesAndPawns.Networking
         /// </summary>
         private void OnFactionChanged(Core.FactionType oldFaction, Core.FactionType newFaction)
         {
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Faction changed: {oldFaction} → {newFaction}");
-            }
-
             ApplyFactionVisuals();
+            
+            // Update HUD if this is the local player
+            if (isLocalPlayer)
+            {
+                UI.PlayerHUD hud = GetComponentInChildren<UI.PlayerHUD>();
+                if (hud != null)
+                {
+                    hud.OnFactionChanged(newFaction);
+                }
+            }
         }
 
         /// <summary>
@@ -105,11 +108,6 @@ namespace ElitesAndPawns.Networking
         /// </summary>
         private void OnPlayerNameChanged(string oldName, string newName)
         {
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Name changed: {oldName} → {newName}");
-            }
-
             // Update nameplate UI if exists
             UpdateNameplate();
         }
@@ -150,11 +148,6 @@ namespace ElitesAndPawns.Networking
                 // Apply faction color
                 Color factionColor = GetFactionColor(faction);
                 playerRenderer.material.color = factionColor;
-
-                if (debugMode)
-                {
-                    Debug.Log($"[NetworkPlayer] Applied {faction} faction color: {factionColor}");
-                }
             }
         }
 
@@ -178,22 +171,6 @@ namespace ElitesAndPawns.Networking
         private void UpdateNameplate()
         {
             // TODO: Update 3D nameplate above player's head
-            // For now, just log
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Nameplate updated: {playerName}");
-            }
-        }
-
-        /// <summary>
-        /// Called when player is destroyed
-        /// </summary>
-        private void OnDestroy()
-        {
-            if (debugMode)
-            {
-                Debug.Log($"[NetworkPlayer] Player destroyed: {playerName} ({faction})");
-            }
         }
     }
 }

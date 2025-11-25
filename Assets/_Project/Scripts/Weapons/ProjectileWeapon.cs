@@ -12,25 +12,8 @@ namespace ElitesAndPawns.Weapons
     {
         [Header("Projectile Settings")]
         [SerializeField] private LayerMask hitMask = -1; // What projectiles can hit
-        [SerializeField] private Transform projectileSpawnPoint; // Where projectiles spawn from
+        [SerializeField] private float spawnOffset = 0.5f; // Distance in front of camera to spawn projectile
         [SerializeField] private bool showDebugTrajectory = true;
-
-        protected override void Start()
-        {
-            base.Start();
-
-            // Use fire point as spawn point if not set
-            if (projectileSpawnPoint == null)
-            {
-                projectileSpawnPoint = firePoint;
-            }
-
-            // Validate projectile prefab
-            if (weaponData.projectilePrefab == null)
-            {
-                Debug.LogError($"[ProjectileWeapon] {weaponData.weaponName} has no projectile prefab assigned!");
-            }
-        }
 
         /// <summary>
         /// Spawn and fire a projectile
@@ -43,14 +26,14 @@ namespace ElitesAndPawns.Weapons
                 // Apply spread
                 Vector3 finalDirection = ApplySpread(shootDirection);
 
-                // Spawn projectile
-                SpawnProjectile(finalDirection);
+                // Spawn projectile with origin from camera
+                SpawnProjectile(shootOrigin, finalDirection);
 
                 // Debug visualization
                 if (showDebugTrajectory)
                 {
                     // Predict trajectory for visualization
-                    DrawTrajectoryPrediction(projectileSpawnPoint.position, finalDirection, weaponData.projectileSpeed, weaponData.projectileGravity);
+                    DrawTrajectoryPrediction(shootOrigin, finalDirection, weaponData.projectileSpeed, weaponData.projectileGravity);
                 }
             }
         }
@@ -59,7 +42,7 @@ namespace ElitesAndPawns.Weapons
         /// Spawn a single projectile
         /// </summary>
         [Server]
-        private void SpawnProjectile(Vector3 direction)
+        private void SpawnProjectile(Vector3 shootOrigin, Vector3 direction)
         {
             if (weaponData.projectilePrefab == null)
             {
@@ -67,8 +50,8 @@ namespace ElitesAndPawns.Weapons
                 return;
             }
 
-            // Spawn position (slightly forward to avoid hitting shooter)
-            Vector3 spawnPos = projectileSpawnPoint.position;
+            // FIXED: Spawn from camera position (shootOrigin), slightly forward to avoid hitting shooter
+            Vector3 spawnPos = shootOrigin + direction.normalized * spawnOffset;
 
             // Instantiate projectile
             GameObject projectileObj = Instantiate(
@@ -93,11 +76,6 @@ namespace ElitesAndPawns.Weapons
             else
             {
                 Debug.LogError("[ProjectileWeapon] Projectile prefab missing Projectile component!");
-            }
-
-            if (debugMode)
-            {
-                Debug.Log($"[ProjectileWeapon] Spawned projectile: {weaponData.weaponName}");
             }
         }
 
@@ -161,15 +139,16 @@ namespace ElitesAndPawns.Weapons
 
         private void OnDrawGizmos()
         {
-            if (!debugMode || projectileSpawnPoint == null) return;
+            if (!debugMode || playerCamera == null) return;
 
-            // Draw spawn point
+            // Draw spawn point from camera
+            Vector3 spawnPos = playerCamera.transform.position + playerCamera.transform.forward * spawnOffset;
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(projectileSpawnPoint.position, 0.05f);
+            Gizmos.DrawWireSphere(spawnPos, 0.05f);
             
             // Draw forward direction
             Gizmos.color = Color.red;
-            Gizmos.DrawRay(projectileSpawnPoint.position, projectileSpawnPoint.forward * 2f);
+            Gizmos.DrawRay(spawnPos, playerCamera.transform.forward * 2f);
         }
     }
 }

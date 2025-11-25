@@ -1,0 +1,313 @@
+using System.Collections.Generic;
+using System.Linq;
+using Mirror;
+using UnityEngine;
+
+namespace ElitesAndPawns.Core
+{
+    /// <summary>
+    /// Manages team assignment, tracking, and scoring for multiplayer matches.
+    /// Singleton that persists across scenes.
+    /// </summary>
+    public class TeamManager : NetworkBehaviour
+    {
+        private static TeamManager _instance;
+        public static TeamManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = FindObjectOfType<TeamManager>();
+                    if (_instance == null)
+                    {
+                        GameObject go = new GameObject("TeamManager");
+                        _instance = go.AddComponent<TeamManager>();
+                        DontDestroyOnLoad(go);
+                    }
+                }
+                return _instance;
+            }
+        }
+
+        [Header("Team Configuration")]
+        [SerializeField] private int maxPlayersPerTeam = 8;
+        [SerializeField] private bool autoBalance = true;
+        [SerializeField] private float teamBalanceCheckInterval = 5f;
+
+        [Header("Team Scores")]
+        [SyncVar(hook = nameof(OnBlueScoreChanged))]
+        private int blueScore = 0;
+        
+        [SyncVar(hook = nameof(OnRedScoreChanged))]
+        private int redScore = 0;
+
+        [Header("Team Tracking")]
+        private SyncList<uint> bluePlayers;
+        private SyncList<uint> redPlayers;
+
+        [Header("Debug")]
+        [SerializeField] private bool debugMode = true;
+
+        // Events
+        public delegate void TeamScoreChanged(FactionType team, int newScore);
+        public static event TeamScoreChanged OnTeamScoreChanged;
+
+        public delegate void PlayerJoinedTeam(uint netId, FactionType team);
+        public static event PlayerJoinedTeam OnPlayerJoinedTeam;
+
+        public delegate void PlayerLeftTeam(uint netId, FactionType team);
+        public static event PlayerLeftTeam OnPlayerLeftTeam;
+
+        // Properties
+        public int BlueScore => blueScore;
+        public int RedScore => redScore;
+        public int BluePlayerCount => bluePlayers.Count;
+        public int RedPlayerCount => redPlayers.Count;
+        public List<uint> BluePlayers => bluePlayers.ToList();
+        public List<uint> RedPlayers => redPlayers.ToList();
+
+        private void Awake()
+        {
+            // Initialize SyncLists
+            bluePlayers = new SyncList<uint>();
+            redPlayers = new SyncList<uint>();
+            
+            // Singleton pattern
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            _instance = this;
+            DontDestroyOnLoad(gameObject);
+
+            if (debugMode)
+            {
+                Debug.Log("[TeamManager] Initialized");
+            }
+        }
+
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+            // Start team balance checker
+            if (autoBalance)
+            {
+                InvokeRepeating(nameof(CheckTeamBalance), teamBalanceCheckInterval, teamBalanceCheckInterval);
+            }
+
+            if (debugMode)
+            {
+                Debug.Log("[TeamManager] Server started - team tracking enabled");
+            }
+        }
+
+        /// <summary>
+        /// Get the team that needs more players for balance
+        /// </summary>
+        public FactionType GetBalancedTeam()
+        {
+            int blueDiff = bluePlayers.Count;
+            int redDiff = redPlayers.Count;
+
+            if (blueDiff <= redDiff)
+            {
+                return FactionType.Blue;
+            }
+            else
+            {
+                return FactionType.Red;
+            }
+        }
+
+        /// <summary>
+        /// Add a player to a team (Server only)
+        /// </summary>
+        [Server]
+        public void AddPlayerToTeam(uint playerNetId, FactionType team)
+        {
+            // Remove from any existing team first
+            RemovePlayerFromTeams(playerNetId);
+
+            // Add to new team
+            switch (team)
+            {
+                case FactionType.Blue:
+                    bluePlayers.Add(playerNetId);
+                    break;
+                case FactionType.Red:
+                    redPlayers.Add(playerNetId);
+                    break;
+                default:
+                    Debug.LogWarning($"[TeamManager] Attempted to add player to invalid team: {team}");
+                    return;
+            }
+
+            if (debugMode)
+            {
+                Debug.Log($"[TeamManager] Player {playerNetId} joined {team} team. " +
+                         $"Blue: {bluePlayers.Count}, Red: {redPlayers.Count}");
+            }
+
+            // Fire event
+            OnPlayerJoinedTeam?.Invoke(playerNetId, team);
+        }
+
+        /// <summary>
+        /// Remove a player from all teams (Server only)
+        /// </summary>
+        [Server]
+        public void RemovePlayerFromTeams(uint playerNetId)
+        {
+            FactionType? previousTeam = null;
+
+            if (bluePlayers.Contains(playerNetId))
+            {
+                bluePlayers.Remove(playerNetId);
+                previousTeam = FactionType.Blue;
+            }
+            
+            if (redPlayers.Contains(playerNetId))
+            {
+                redPlayers.Remove(playerNetId);
+                previousTeam = FactionType.Red;
+            }
+
+            if (previousTeam.HasValue && debugMode)
+            {
+                Debug.Log($"[TeamManager] Player {playerNetId} removed from {previousTeam} team");
+                OnPlayerLeftTeam?.Invoke(playerNetId, previousTeam.Value);
+            }
+        }
+
+        /// <summary>
+        /// Get a player's current team
+        /// </summary>
+        public FactionType? GetPlayerTeam(uint playerNetId)
+        {
+            if (bluePlayers.Contains(playerNetId))
+                return FactionType.Blue;
+            if (redPlayers.Contains(playerNetId))
+                return FactionType.Red;
+            return null;
+        }
+
+        /// <summary>
+        /// Add points to a team's score (Server only)
+        /// </summary>
+        [Server]
+        public void AddScore(FactionType team, int points)
+        {
+            switch (team)
+            {
+                case FactionType.Blue:
+                    blueScore += points;
+                    break;
+                case FactionType.Red:
+                    redScore += points;
+                    break;
+            }
+
+            if (debugMode)
+            {
+                Debug.Log($"[TeamManager] {team} team scored {points} points. " +
+                         $"Score - Blue: {blueScore}, Red: {redScore}");
+            }
+        }
+
+        /// <summary>
+        /// Reset scores (Server only)
+        /// </summary>
+        [Server]
+        public void ResetScores()
+        {
+            blueScore = 0;
+            redScore = 0;
+
+            if (debugMode)
+            {
+                Debug.Log("[TeamManager] Scores reset");
+            }
+        }
+
+        /// <summary>
+        /// Check if teams are balanced and suggest swaps if needed
+        /// </summary>
+        [Server]
+        private void CheckTeamBalance()
+        {
+            int diff = Mathf.Abs(bluePlayers.Count - redPlayers.Count);
+            
+            if (diff > 1)
+            {
+                if (debugMode)
+                {
+                    Debug.LogWarning($"[TeamManager] Teams unbalanced! Blue: {bluePlayers.Count}, Red: {redPlayers.Count}");
+                }
+                
+                // In future: Could auto-balance or prompt players to switch
+                // For now, just log the imbalance
+            }
+        }
+
+        /// <summary>
+        /// Get all players from both teams
+        /// </summary>
+        public List<uint> GetAllPlayers()
+        {
+            List<uint> allPlayers = new List<uint>();
+            allPlayers.AddRange(bluePlayers);
+            allPlayers.AddRange(redPlayers);
+            return allPlayers;
+        }
+
+        /// <summary>
+        /// Check if a player is on a specific team
+        /// </summary>
+        public bool IsPlayerOnTeam(uint playerNetId, FactionType team)
+        {
+            return team switch
+            {
+                FactionType.Blue => bluePlayers.Contains(playerNetId),
+                FactionType.Red => redPlayers.Contains(playerNetId),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Get the opposing team
+        /// </summary>
+        public FactionType GetOpposingTeam(FactionType team)
+        {
+            return team switch
+            {
+                FactionType.Blue => FactionType.Red,
+                FactionType.Red => FactionType.Blue,
+                _ => FactionType.None
+            };
+        }
+
+        // SyncVar hooks
+        private void OnBlueScoreChanged(int oldScore, int newScore)
+        {
+            OnTeamScoreChanged?.Invoke(FactionType.Blue, newScore);
+        }
+
+        private void OnRedScoreChanged(int oldScore, int newScore)
+        {
+            OnTeamScoreChanged?.Invoke(FactionType.Red, newScore);
+        }
+
+        // Debug methods
+        [Server]
+        public void DebugPrintTeams()
+        {
+            Debug.Log($"[TeamManager] === TEAM STATUS ===");
+            Debug.Log($"Blue Team ({bluePlayers.Count} players): {string.Join(", ", bluePlayers)}");
+            Debug.Log($"Red Team ({redPlayers.Count} players): {string.Join(", ", redPlayers)}");
+            Debug.Log($"Scores - Blue: {blueScore}, Red: {redScore}");
+        }
+    }
+}

@@ -4,46 +4,14 @@ using UnityEngine.UI;
 namespace ElitesAndPawns.UI
 {
     /// <summary>
-    /// Debug and fix HUD layout
+    /// Fixes HUD layout issues on startup.
+    /// Ensures AmmoPanel and HealthPanel are properly positioned.
     /// </summary>
     public class HUDDebugger : MonoBehaviour
     {
         private void Start()
         {
-            Debug.Log("=== HUD LAYOUT FIX ===");
-            DiagnoseAmmoPanel();
             FixHUDLayout();
-        }
-        
-        private void DiagnoseAmmoPanel()
-        {
-            Debug.Log("=== AMMO PANEL DIAGNOSIS ===");
-            
-            RectTransform ammoPanel = transform.Find("AmmoPanel") as RectTransform;
-            if (ammoPanel != null)
-            {
-                Debug.Log($"AmmoPanel found! Active: {ammoPanel.gameObject.activeSelf}");
-                Debug.Log($"AmmoPanel position: {ammoPanel.anchoredPosition}");
-                Debug.Log($"AmmoPanel anchors: Min={ammoPanel.anchorMin}, Max={ammoPanel.anchorMax}");
-                Debug.Log($"AmmoPanel size: {ammoPanel.sizeDelta}");
-                Debug.Log($"AmmoPanel children: {ammoPanel.childCount}");
-                
-                foreach (Transform child in ammoPanel)
-                {
-                    Debug.Log($"  Child: {child.name}, Active: {child.gameObject.activeSelf}");
-                    Text text = child.GetComponent<Text>();
-                    if (text != null)
-                    {
-                        Debug.Log($"    Text: '{text.text}', FontSize: {text.fontSize}, Color: {text.color}, Enabled: {text.enabled}");
-                        RectTransform rect = text.GetComponent<RectTransform>();
-                        Debug.Log($"    Position: {rect.anchoredPosition}, Size: {rect.sizeDelta}");
-                    }
-                }
-            }
-            else
-            {
-                Debug.LogError("AmmoPanel NOT FOUND!");
-            }
         }
         
         private void FixHUDLayout()
@@ -87,8 +55,6 @@ namespace ElitesAndPawns.UI
             RectTransform ammoPanel = transform.Find("AmmoPanel") as RectTransform;
             if (ammoPanel != null)
             {
-                Debug.Log("Fixing AmmoPanel positioning...");
-                
                 ammoPanel.anchorMin = new Vector2(1, 0);
                 ammoPanel.anchorMax = new Vector2(1, 0);
                 ammoPanel.pivot = new Vector2(1, 0);
@@ -97,8 +63,6 @@ namespace ElitesAndPawns.UI
                 
                 // Make sure it's active
                 ammoPanel.gameObject.SetActive(true);
-                
-                Debug.Log($"AmmoPanel repositioned to: {ammoPanel.anchoredPosition}");
                 
                 // Fix weapon name text
                 Transform weaponTextTransform = ammoPanel.Find("WeaponNameText");
@@ -118,13 +82,7 @@ namespace ElitesAndPawns.UI
                         weaponText.alignment = TextAnchor.UpperCenter;
                         weaponText.fontSize = 20;
                         weaponText.color = new Color(0.8f, 0.8f, 0.8f, 1f);
-                        
-                        Debug.Log($"WeaponNameText fixed: '{weaponText.text}'");
                     }
-                }
-                else
-                {
-                    Debug.LogError("WeaponNameText NOT FOUND!");
                 }
                 
                 // Fix ammo text
@@ -146,21 +104,13 @@ namespace ElitesAndPawns.UI
                         ammoText.fontSize = 48;
                         ammoText.fontStyle = FontStyle.Bold;
                         ammoText.color = Color.white;
-                        
-                        Debug.Log($"AmmoText fixed: '{ammoText.text}'");
                     }
-                }
-                else
-                {
-                    Debug.LogError("AmmoText NOT FOUND!");
                 }
             }
             else
             {
-                Debug.LogError("AmmoPanel NOT FOUND in FixHUDLayout!");
+                Debug.LogError("[HUDDebugger] AmmoPanel not found! HUD may not display correctly.");
             }
-            
-            Debug.Log("=== HUD LAYOUT FIX COMPLETE ===");
         }
     }
 }

@@ -1,22 +1,30 @@
 # Quick Reference - Elites and Pawns True
 
 **Last Updated:** November 4, 2025  
-**Status:** ✅ **MULTIPLAYER WORKING** - HUD & Combat Functional
+**Status:** ✅ **TEAM SYSTEM IMPLEMENTED** - Blue vs Red Teams Working
 
 ---
 
 ## 🎮 CURRENT STATE
 
 **What's Working:**
-- ✅ 2-player multiplayer (host + client)
+- ✅ Team-based multiplayer (Blue vs Red)
+- ✅ Auto-balanced team assignment
+- ✅ Team-specific spawn points
 - ✅ Movement (WASD, sprint, jump, mouse look)
 - ✅ Shooting (projectile-based with physics)
 - ✅ Weapons (Assault Rifle with ammo/reload)
 - ✅ Health system (damage, death, respawn)
-- ✅ HUD (health bar, ammo counter - both players)
+- ✅ HUD (team indicator, health bar, ammo counter)
 - ✅ Networking (Mirror - fully synchronized)
+- ✅ Friendly fire protection
 
-**Recent Fixes (Nov 4):**
+**Recent Changes (Nov 4):**
+- NEW: Team system (Blue vs Red)
+- NEW: TeamManager for tracking and scoring
+- NEW: SpawnPoint system for team spawns
+- NEW: Team HUD display
+- NEW: Friendly fire protection
 - Fixed HUD rendering (Canvas now uses Screen Space - Camera)
 - Fixed ammo sync bug (was lagging by 1 bullet)
 - Fixed projectiles not visible for clients
@@ -36,6 +44,7 @@
 | R | Reload |
 | 1/2/3 | Switch Weapon |
 | ESC | Unlock Cursor |
+| F1 | Toggle Team Debug Menu |
 
 ---
 
@@ -44,11 +53,12 @@
 ```
 Assets/_Project/
 ├── Scripts/
-│   ├── Core/ (GameEnums, Singleton, GameManager)
+│   ├── Core/ (GameEnums, Singleton, GameManager, TeamManager, SpawnPoint)
 │   ├── Networking/ (ElitesNetworkManager, NetworkPlayer)
 │   ├── Player/ (PlayerController, PlayerHealth)
 │   ├── Weapons/ (BaseWeapon, ProjectileWeapon, Projectile, WeaponManager, WeaponData)
-│   └── UI/ (PlayerHUD, LocalPlayerCanvas, HUDDebugger)
+│   ├── UI/ (PlayerHUD, LocalPlayerCanvas, HUDDebugger)
+│   └── Debug/ (NetworkManagerDebug, TeamSystemDebugger)
 ├── Scenes/
 │   └── NetworkTest.unity - Main test scene
 ├── Prefabs/
@@ -86,6 +96,14 @@ Assets/_Project/
 - **Server-Authoritative** - All gameplay runs on server
 - **KCP Transport** - Reliable UDP
 - **Auto Projectile Registration** - Prefabs auto-registered from WeaponData
+- **Team Balancing** - Auto-assigns players to smaller team
+
+### Team System
+- **TeamManager** - Singleton for team tracking and scoring
+- **Auto-Balance** - Players join the smaller team
+- **Team Spawns** - Separate spawn areas for Blue/Red
+- **Friendly Fire** - Disabled by default
+- **Team HUD** - Shows team affiliation
 
 ### Player Hierarchy
 ```
@@ -109,10 +127,10 @@ Player (NetworkIdentity, CharacterController)
 ## 🐛 KNOWN ISSUES
 
 **Minor:**
-- No spawn points configured (players spawn at origin)
 - Only 1 weapon type (Assault Rifle)
 - "Head" tag warning (non-critical)
 - No sound effects yet
+- King of the Hill gamemode not yet implemented
 
 **None Critical** - Game is fully playable!
 
@@ -123,8 +141,10 @@ Player (NetworkIdentity, CharacterController)
 ```
 [ElitesNetworkManager] Server started
 [ElitesNetworkManager] Registered X projectile prefab(s)
+[TeamManager] Initialized
+[ElitesNetworkManager] Player connected. Assigned to Blue faction.
 [LocalPlayerCanvas] Canvas set to ScreenSpaceCamera
-[PlayerHUD] Initialized
+[PlayerHUD] Initialized for Blue team
 [WeaponManager] Found camera: PlayerCamera
 [BaseWeapon] Fired! Ammo: X/X
 ```
@@ -133,13 +153,15 @@ Player (NetworkIdentity, CharacterController)
 
 ## 🎯 NEXT PRIORITIES
 
-**Milestone 2: Teams + War Map (Starting Now)**
+**Milestone 2: Teams + War Map (IN PROGRESS)**
 
 **Phase 1: Team Foundation** (Week 1 - 6-8 hours)
-1. Team system (Blue vs Red assignment)
-2. Team spawn points (separate areas)
-3. King of the Hill gamemode
-4. Victory/defeat screens
+1. ✅ Team system (Blue vs Red assignment)
+2. ✅ Team spawn points (separate areas)
+3. ✅ Team HUD display
+4. ✅ Friendly fire protection
+5. ⏳ King of the Hill gamemode
+6. ⏳ Victory/defeat screens
 
 **Phase 2: War Map** (Week 2 - 10-12 hours)
 1. Create WarMap scene
@@ -190,8 +212,9 @@ git push
 
 1. **Connect** - Host starts server, client joins
 2. **Spawn** - Both players spawn as Blue faction
-3. **Combat** - Shoot, take damage, respawn
-4. **Goal** - Test multiplayer functionality
+3. **Combat** - Shoot enemies, take damage, respawn
+4. **Teams** - Players spawn on Blue or Red teams
+5. **Goal** - Test team-based combat
 
 *(Full game loop with War Map coming in Milestone 2)*
 

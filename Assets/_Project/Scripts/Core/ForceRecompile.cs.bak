@@ -1,0 +1,30 @@
+using UnityEngine;
+
+namespace ElitesAndPawns.Core
+{
+    /// <summary>
+    /// Temporary script to force Unity to recompile and recognize new files.
+    /// Delete this file after Unity successfully compiles.
+    /// </summary>
+    public class ForceRecompile : MonoBehaviour
+    {
+        void Start()
+        {
+            // This is just to force Unity to recompile
+            Debug.Log("[ForceRecompile] Checking if TeamManager and SpawnPoint are accessible...");
+            
+            // Try to reference the classes to ensure they're compiled
+            System.Type teamManagerType = typeof(TeamManager);
+            System.Type spawnPointType = typeof(SpawnPoint);
+            
+            if (teamManagerType != null)
+                Debug.Log("[ForceRecompile] TeamManager type found!");
+            
+            if (spawnPointType != null)
+                Debug.Log("[ForceRecompile] SpawnPoint type found!");
+            
+            // Self-destruct
+            Destroy(this);
+        }
+    }
+}

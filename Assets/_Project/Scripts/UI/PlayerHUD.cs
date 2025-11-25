@@ -13,6 +13,11 @@ namespace ElitesAndPawns.UI
     /// </summary>
     public class PlayerHUD : MonoBehaviour
     {
+        [Header("Team Display")]
+        [SerializeField] private Text teamText;
+        [SerializeField] private Image teamColorIndicator;
+        [SerializeField] private GameObject teamPanel;
+
         [Header("Health Display")]
         [SerializeField] private Text healthText;
         [SerializeField] private Image healthBar;
@@ -26,6 +31,7 @@ namespace ElitesAndPawns.UI
         [Header("References")]
         [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private WeaponManager weaponManager;
+        [SerializeField] private NetworkPlayer networkPlayer;
 
         [Header("Settings")]
         [SerializeField] private Color healthColorHigh = Color.green;
@@ -50,6 +56,11 @@ namespace ElitesAndPawns.UI
                 weaponManager = GetComponentInParent<WeaponManager>();
             }
 
+            if (networkPlayer == null)
+            {
+                networkPlayer = GetComponentInParent<NetworkPlayer>();
+            }
+
             // Subscribe to events
             if (playerHealth != null)
             {
@@ -72,9 +83,15 @@ namespace ElitesAndPawns.UI
                 OnWeaponSwitched(weaponManager.CurrentWeapon);
             }
 
+            // Update team display
+            if (networkPlayer != null)
+            {
+                UpdateTeamDisplay(networkPlayer.Faction);
+            }
+
             if (debugMode)
             {
-                Debug.Log("[PlayerHUD] Initialized");
+                Debug.Log($"[PlayerHUD] Initialized for {networkPlayer?.Faction ?? Core.FactionType.None} team");
             }
         }
 
@@ -97,6 +114,45 @@ namespace ElitesAndPawns.UI
             {
                 currentWeapon.OnAmmoChanged -= UpdateAmmoDisplay;
             }
+        }
+
+        /// <summary>
+        /// Update team display
+        /// </summary>
+        private void UpdateTeamDisplay(Core.FactionType faction)
+        {
+            if (teamText != null)
+            {
+                teamText.text = $"{faction.ToString().ToUpper()} TEAM";
+                
+                // Set team color
+                Color teamColor = GetTeamColor(faction);
+                teamText.color = teamColor;
+            }
+
+            if (teamColorIndicator != null)
+            {
+                teamColorIndicator.color = GetTeamColor(faction);
+            }
+
+            if (teamPanel != null)
+            {
+                teamPanel.SetActive(faction != Core.FactionType.None);
+            }
+        }
+
+        /// <summary>
+        /// Get color for faction
+        /// </summary>
+        private Color GetTeamColor(Core.FactionType faction)
+        {
+            return faction switch
+            {
+                Core.FactionType.Blue => new Color(0.2f, 0.4f, 1f, 1f),  // Bright blue
+                Core.FactionType.Red => new Color(1f, 0.2f, 0.2f, 1f),   // Bright red
+                Core.FactionType.Green => new Color(0.2f, 1f, 0.4f, 1f),  // Bright green
+                _ => Color.white
+            };
         }
 
         /// <summary>
@@ -226,6 +282,11 @@ namespace ElitesAndPawns.UI
         /// </summary>
         public void SetHUDVisible(bool visible)
         {
+            if (teamPanel != null)
+            {
+                teamPanel.SetActive(visible);
+            }
+
             if (healthPanel != null)
             {
                 healthPanel.SetActive(visible);
@@ -234,6 +295,19 @@ namespace ElitesAndPawns.UI
             if (ammoPanel != null)
             {
                 ammoPanel.SetActive(visible);
+            }
+        }
+
+        /// <summary>
+        /// Called from NetworkPlayer when faction changes
+        /// </summary>
+        public void OnFactionChanged(Core.FactionType newFaction)
+        {
+            UpdateTeamDisplay(newFaction);
+            
+            if (debugMode)
+            {
+                Debug.Log($"[PlayerHUD] Faction changed to: {newFaction}");
             }
         }
     }

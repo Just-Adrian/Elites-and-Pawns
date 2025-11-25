@@ -26,7 +26,7 @@ namespace ElitesAndPawns.Player
         [SerializeField] private LayerMask groundMask = -1; // Everything by default
 
         [Header("Debug")]
-        [SerializeField] private bool debugMode = true;
+        [SerializeField] private bool debugMode = false;
 
         // Components
         private CharacterController characterController;
@@ -41,6 +41,16 @@ namespace ElitesAndPawns.Player
         private Vector2 lookInput;
         private bool jumpPressed;
         private bool sprintPressed;
+
+        // Control flags
+        private bool canMove = true;  // Can be disabled while keeping camera active (e.g., when dead)
+
+        // Properties
+        public bool CanMove 
+        { 
+            get => canMove; 
+            set => canMove = value; 
+        }
 
         private void Awake()
         {
@@ -106,13 +116,19 @@ namespace ElitesAndPawns.Player
             // Handle input
             HandleInput();
 
-            // Ground check
-            CheckGrounded();
+            // Ground check (only if we can move)
+            if (canMove)
+            {
+                CheckGrounded();
+            }
 
-            // Handle movement
-            HandleMovement();
+            // Handle movement (only if we can move)
+            if (canMove)
+            {
+                HandleMovement();
+            }
 
-            // Handle camera
+            // Handle camera (ALWAYS - works even when dead!)
             HandleCamera();
 
             // Unlock cursor with ESC
@@ -140,7 +156,7 @@ namespace ElitesAndPawns.Player
             float vertical = Input.GetAxis("Vertical");     // W/S or Up/Down arrows
             moveInput = new Vector2(horizontal, vertical);
 
-            // Look input
+            // Look input (ALWAYS read, even when dead)
             float mouseX = Input.GetAxis("Mouse X");
             float mouseY = Input.GetAxis("Mouse Y");
             lookInput = new Vector2(mouseX, mouseY);
@@ -153,7 +169,7 @@ namespace ElitesAndPawns.Player
         }
 
         /// <summary>
-        /// Check if player is on the ground - FIXED VERSION
+        /// Check if player is on the ground - FIXED to ignore triggers
         /// </summary>
         private void CheckGrounded()
         {
@@ -162,21 +178,28 @@ namespace ElitesAndPawns.Player
             Vector3 spherePosition = transform.position - new Vector3(0, checkDistance, 0);
             float sphereRadius = characterController.radius * 0.9f;
             
-            // Use CheckSphere for detection
-            isGrounded = Physics.CheckSphere(spherePosition, sphereRadius, groundMask);
-
-            // Additional check: make sure we're not detecting ourselves
-            if (isGrounded)
+            // CRITICAL FIX: Use OverlapSphere to ignore triggers
+            // This prevents capture points and other triggers from being detected as ground
+            Collider[] hitColliders = Physics.OverlapSphere(
+                spherePosition, 
+                sphereRadius, 
+                groundMask,
+                QueryTriggerInteraction.Ignore  // IGNORE TRIGGERS!
+            );
+            
+            // Check if any of the colliders are actually below us (not our own collider)
+            isGrounded = false;
+            foreach (Collider col in hitColliders)
             {
-                // Verify with a raycast
-                bool raycastCheck = Physics.Raycast(
-                    transform.position,
-                    Vector3.down,
-                    checkDistance + sphereRadius,
-                    groundMask
-                );
+                // Make sure it's not our own collider
+                if (col.transform == transform || col.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
                 
-                isGrounded = raycastCheck;
+                // If we found a valid ground collider, we're grounded
+                isGrounded = true;
+                break;
             }
 
             // Debug visualization
@@ -188,7 +211,7 @@ namespace ElitesAndPawns.Player
         }
 
         /// <summary>
-        /// Handle player movement and jumping - FIXED VERSION
+        /// Handle player movement and jumping
         /// </summary>
         private void HandleMovement()
         {
@@ -219,7 +242,7 @@ namespace ElitesAndPawns.Player
             // Clamp falling velocity
             velocity.y = Mathf.Max(velocity.y, -50f);
 
-            // CRITICAL FIX: Reset velocity AFTER applying gravity if grounded
+            // Reset velocity if grounded
             if (isGrounded && velocity.y < 0)
             {
                 velocity.y = -2f; // Small downward force to keep grounded
@@ -231,6 +254,7 @@ namespace ElitesAndPawns.Player
 
         /// <summary>
         /// Handle camera rotation (first-person look)
+        /// This works even when canMove is false (when dead)
         /// </summary>
         private void HandleCamera()
         {
@@ -259,7 +283,7 @@ namespace ElitesAndPawns.Player
         /// </summary>
         public void Jump()
         {
-            if (isGrounded)
+            if (isGrounded && canMove)
             {
                 velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
             }

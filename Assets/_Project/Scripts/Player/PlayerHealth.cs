@@ -20,6 +20,9 @@ namespace ElitesAndPawns.Player
         [Header("Respawn")]
         [SerializeField] private float respawnDelay = 3f;
         [SerializeField] private bool autoRespawn = true;
+        
+        [Header("Team Settings")]
+        [SerializeField] private bool friendlyFireEnabled = false;
 
         [Header("Damage Feedback")]
         [SerializeField] private float damageFeedbackDuration = 0.2f;
@@ -34,14 +37,26 @@ namespace ElitesAndPawns.Player
         public event System.Action OnRespawn;
 
         // State
+        [SyncVar(hook = nameof(OnIsDeadChanged))]
         private bool isDead = false;
         private NetworkPlayer lastAttacker = null;
+
+        // Components cache
+        private CharacterController characterController;
+        private Collider[] colliders;
 
         // Properties
         public float CurrentHealth => currentHealth;
         public float MaxHealth => maxHealth;
         public bool IsDead => isDead;
         public float HealthPercentage => currentHealth / maxHealth;
+
+        private void Awake()
+        {
+            // Cache components
+            characterController = GetComponent<CharacterController>();
+            colliders = GetComponentsInChildren<Collider>();
+        }
 
         private void Start()
         {
@@ -59,6 +74,20 @@ namespace ElitesAndPawns.Player
         public void TakeDamage(float damage, NetworkPlayer attacker = null)
         {
             if (isDead) return;
+            
+            // Check for friendly fire
+            if (!friendlyFireEnabled && attacker != null)
+            {
+                NetworkPlayer myPlayer = GetComponent<NetworkPlayer>();
+                if (myPlayer != null && myPlayer.Faction == attacker.Faction && myPlayer.Faction != Core.FactionType.None)
+                {
+                    if (debugMode)
+                    {
+                        Debug.Log($"[PlayerHealth] Friendly fire blocked! {attacker.PlayerName} ({attacker.Faction}) tried to damage teammate {myPlayer.PlayerName}");
+                    }
+                    return; // No damage from teammates
+                }
+            }
 
             // Store attacker
             lastAttacker = attacker;
@@ -132,7 +161,15 @@ namespace ElitesAndPawns.Player
                 Debug.Log($"[PlayerHealth] {GetComponent<NetworkPlayer>().PlayerName} died. Killed by: {killerName}");
             }
 
-            // Notify all clients of death
+            // CRITICAL: Disable colliders on SERVER so dead players can't capture points
+            DisableColliders();
+
+            if (debugMode)
+            {
+                Debug.Log($"[PlayerHealth] Server disabled colliders for dead player");
+            }
+
+            // Notify all clients of death (they'll also disable colliders for visuals)
             RpcOnDeath(killer);
 
             // Award kill to attacker (future: update scoreboard, stats)
@@ -154,21 +191,58 @@ namespace ElitesAndPawns.Player
         [Server]
         public void Respawn()
         {
-            // TODO: Check if battle has tokens remaining
-            // TODO: Find spawn point
-            // For now, just reset health and state
-
-            // Reset health
+            // Reset health and state
             currentHealth = maxHealth;
             isDead = false;
             lastAttacker = null;
 
-            if (debugMode)
+            // Find and teleport to spawn point
+            NetworkPlayer networkPlayer = GetComponent<NetworkPlayer>();
+            if (networkPlayer != null)
             {
-                Debug.Log($"[PlayerHealth] {GetComponent<NetworkPlayer>().PlayerName} respawned");
+                Core.FactionType faction = networkPlayer.Faction;
+                Core.SpawnPoint spawnPoint = Core.SpawnPoint.GetRandomSpawnPoint(faction);
+
+                if (spawnPoint != null)
+                {
+                    // Disable CharacterController to teleport
+                    if (characterController != null)
+                    {
+                        characterController.enabled = false;
+                    }
+
+                    // Teleport to spawn point
+                    Vector3 spawnPos = spawnPoint.transform.position;
+                    Quaternion spawnRot = spawnPoint.transform.rotation;
+                    transform.position = spawnPos;
+                    transform.rotation = spawnRot;
+
+                    if (debugMode)
+                    {
+                        Debug.Log($"[PlayerHealth] {networkPlayer.PlayerName} teleported to {spawnPoint.name} ({faction} spawn) at position {spawnPos}");
+                    }
+                    
+                    // Explicitly sync position to all clients (in case NetworkTransform missed it)
+                    RpcSyncPosition(spawnPos, spawnRot);
+                }
+                else
+                {
+                    if (debugMode)
+                    {
+                        Debug.LogWarning($"[PlayerHealth] No spawn point found for {faction} faction! Player respawned at death location.");
+                    }
+                }
             }
 
-            // Notify clients
+            // CRITICAL: Re-enable colliders on SERVER
+            EnableColliders();
+
+            if (debugMode)
+            {
+                Debug.Log($"[PlayerHealth] Server re-enabled colliders for respawned player");
+            }
+
+            // Notify clients to respawn (they'll re-enable colliders and visuals)
             RpcOnRespawn();
         }
 
@@ -184,6 +258,21 @@ namespace ElitesAndPawns.Player
 
             // Invoke event for UI updates
             OnHealthChangedEvent?.Invoke(newHealth, maxHealth);
+        }
+
+        /// <summary>
+        /// Called when isDead changes (on all clients)
+        /// This ensures clients know when players die for proper ControlPoint cleanup
+        /// </summary>
+        private void OnIsDeadChanged(bool oldValue, bool newValue)
+        {
+            if (debugMode)
+            {
+                Debug.Log($"[PlayerHealth] isDead changed: {oldValue} → {newValue} (Client-side sync)");
+            }
+            
+            // Note: We don't need to do anything here since RpcOnDeath handles visuals
+            // This hook just ensures the IsDead property is synced for ControlPoint.CleanupPlayerLists()
         }
 
         /// <summary>
@@ -211,13 +300,13 @@ namespace ElitesAndPawns.Player
 
             if (debugMode)
             {
-                Debug.Log("[PlayerHealth] Death RPC received");
+                Debug.Log("[PlayerHealth] Death RPC received on client");
             }
 
             // Play death effects (animation, sound, etc.)
             PlayDeathEffects();
 
-            // Disable controls if local player
+            // Disable controls if local player (but allow camera to look around)
             if (isLocalPlayer)
             {
                 DisablePlayerControls();
@@ -234,7 +323,7 @@ namespace ElitesAndPawns.Player
 
             if (debugMode)
             {
-                Debug.Log("[PlayerHealth] Respawn RPC received");
+                Debug.Log("[PlayerHealth] Respawn RPC received on client");
             }
 
             // Play respawn effects
@@ -244,6 +333,35 @@ namespace ElitesAndPawns.Player
             if (isLocalPlayer)
             {
                 EnablePlayerControls();
+            }
+        }
+
+        /// <summary>
+        /// RPC: Sync player position to all clients after teleport
+        /// This ensures CharacterController doesn't interfere with NetworkTransform
+        /// </summary>
+        [ClientRpc]
+        private void RpcSyncPosition(Vector3 position, Quaternion rotation)
+        {
+            // Disable CharacterController temporarily
+            if (characterController != null)
+            {
+                characterController.enabled = false;
+            }
+            
+            // Set position and rotation
+            transform.position = position;
+            transform.rotation = rotation;
+            
+            // Re-enable CharacterController
+            if (characterController != null)
+            {
+                characterController.enabled = true;
+            }
+            
+            if (debugMode)
+            {
+                Debug.Log($"[PlayerHealth] Client synced to position {position}");
             }
         }
 
@@ -269,11 +387,7 @@ namespace ElitesAndPawns.Player
         /// </summary>
         private void PlayDeathEffects()
         {
-            // TODO: Play death animation
-            // TODO: Play death sound
-            // TODO: Ragdoll or fade out
-
-            // For now, just disable renderer temporarily
+            // Disable visual components
             Renderer renderer = GetComponentInChildren<Renderer>();
             if (renderer != null)
             {
@@ -286,6 +400,14 @@ namespace ElitesAndPawns.Player
             {
                 weaponManager.CurrentWeapon.gameObject.SetActive(false);
             }
+
+            // Also disable colliders on client side for consistency
+            DisableColliders();
+
+            if (debugMode)
+            {
+                Debug.Log("[PlayerHealth] Client death effects applied - colliders disabled");
+            }
         }
 
         /// <summary>
@@ -293,11 +415,7 @@ namespace ElitesAndPawns.Player
         /// </summary>
         private void PlayRespawnEffects()
         {
-            // TODO: Play respawn animation
-            // TODO: Play respawn sound
-            // TODO: Spawn protection effect
-
-            // Re-enable renderer
+            // Re-enable visual components
             Renderer renderer = GetComponentInChildren<Renderer>();
             if (renderer != null)
             {
@@ -310,24 +428,85 @@ namespace ElitesAndPawns.Player
             {
                 weaponManager.CurrentWeapon.gameObject.SetActive(true);
             }
+
+            // Re-enable colliders on client side
+            EnableColliders();
+
+            if (debugMode)
+            {
+                Debug.Log("[PlayerHealth] Client respawn effects applied - colliders enabled");
+            }
+        }
+
+        /// <summary>
+        /// Disable all colliders (when dead)
+        /// </summary>
+        private void DisableColliders()
+        {
+            // Disable CharacterController (prevents body blocking)
+            if (characterController != null)
+            {
+                characterController.enabled = false;
+            }
+
+            // Disable all other colliders (prevents capture point detection)
+            if (colliders != null)
+            {
+                foreach (Collider col in colliders)
+                {
+                    if (col != null && col != characterController)
+                    {
+                        col.enabled = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enable all colliders (when alive)
+        /// </summary>
+        private void EnableColliders()
+        {
+            // Re-enable CharacterController
+            if (characterController != null)
+            {
+                characterController.enabled = true;
+            }
+
+            // Re-enable all other colliders
+            if (colliders != null)
+            {
+                foreach (Collider col in colliders)
+                {
+                    if (col != null && col != characterController)
+                    {
+                        col.enabled = true;
+                    }
+                }
+            }
         }
 
         /// <summary>
         /// Disable player controls (when dead)
+        /// KEEPS CAMERA ENABLED so player can look around while dead
         /// </summary>
         private void DisablePlayerControls()
         {
+            // Disable movement
             PlayerController controller = GetComponent<PlayerController>();
             if (controller != null)
             {
-                controller.enabled = false;
+                controller.CanMove = false;  // Disables movement but camera still works!
             }
 
+            // Disable weapons
             Weapons.WeaponManager weaponManager = GetComponent<Weapons.WeaponManager>();
             if (weaponManager != null)
             {
                 weaponManager.enabled = false;
             }
+
+            // NOTE: We DON'T disable the camera - player can still look around!
         }
 
         /// <summary>
@@ -335,12 +514,14 @@ namespace ElitesAndPawns.Player
         /// </summary>
         private void EnablePlayerControls()
         {
+            // Re-enable movement
             PlayerController controller = GetComponent<PlayerController>();
             if (controller != null)
             {
-                controller.enabled = true;
+                controller.CanMove = true;
             }
 
+            // Re-enable weapons
             Weapons.WeaponManager weaponManager = GetComponent<Weapons.WeaponManager>();
             if (weaponManager != null)
             {

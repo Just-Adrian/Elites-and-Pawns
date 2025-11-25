@@ -1,8 +1,8 @@
 {
-    "status": "idle",
+    "status": "success",
     "errors": 0,
     "warnings": 0,
-    "timestamp": 1762259796329,
+    "timestamp": 1764084173103,
     "projectHash": "53B79E0D",
     "unityVersion": "6000.2.8f1",
     "details": []

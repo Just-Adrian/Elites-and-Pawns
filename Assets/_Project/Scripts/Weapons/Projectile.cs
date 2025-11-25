@@ -127,6 +127,23 @@ namespace ElitesAndPawns.Weapons
                 return;
             }
 
+            // CRITICAL FIX: Ignore triggers that aren't damageable
+            // This prevents bullets from being destroyed by capture points, etc.
+            if (other.isTrigger)
+            {
+                // Only process if this trigger has a PlayerHealth component (i.e., a player hitbox)
+                Player.PlayerHealth targetHealth = other.GetComponentInParent<Player.PlayerHealth>();
+                if (targetHealth == null)
+                {
+                    // Not a damageable trigger, ignore it
+                    if (debugMode)
+                    {
+                        Debug.Log($"[Projectile] Ignoring non-damageable trigger: {other.gameObject.name}");
+                    }
+                    return;
+                }
+            }
+
             // Check if we can hit this layer
             if (((1 << other.gameObject.layer) & hitMask) == 0)
             {

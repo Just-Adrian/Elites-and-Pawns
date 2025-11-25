@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "sceneName": "NetworkTest",
-  "exportTimestamp": "2025-10-31 22:00:17",
+  "exportTimestamp": "2025-11-23 16:46:32",
   "gameObjects": [
     {
       "name": "Main Camera",
@@ -29,7 +29,7 @@
       "active": true,
       "position": [0.090, -0.500, 0.000],
       "rotation": [0.000, 0.000, 0.000],
-      "scale": [20.000, 1.000, 20.000]
+      "scale": [100.000, 1.000, 100.000]
     },
     {
       "name": "NetworkManager",
@@ -39,50 +39,10 @@
       "rotation": [0.000, 0.000, 0.000],
       "scale": [1.000, 1.000, 1.000],
       "scripts": [
-        "ElitesNetworkManager",
         "KcpTransport",
-        "NetworkManagerHUD"
+        "NetworkManagerHUD",
+        "NetworkManager"
       ]    },
-    {
-      "name": "SpawnPoints",
-      "path": "SpawnPoints",
-      "active": true,
-      "position": [0.000, 0.000, 0.000],
-      "rotation": [0.000, 0.000, 0.000],
-      "scale": [1.000, 1.000, 1.000]
-    },
-    {
-      "name": "Spawn1",
-      "path": "SpawnPoints/Spawn1",
-      "active": true,
-      "position": [-5.000, 0.000, 0.000],
-      "rotation": [0.000, 0.000, 0.000],
-      "scale": [1.000, 1.000, 1.000]
-    },
-    {
-      "name": "Spawn2",
-      "path": "SpawnPoints/Spawn2",
-      "active": true,
-      "position": [5.000, 0.000, 0.000],
-      "rotation": [0.000, 0.000, 0.000],
-      "scale": [1.000, 1.000, 1.000]
-    },
-    {
-      "name": "Spawn3",
-      "path": "SpawnPoints/Spawn3",
-      "active": true,
-      "position": [0.000, 0.000, -5.000],
-      "rotation": [0.000, 0.000, 0.000],
-      "scale": [1.000, 1.000, 1.000]
-    },
-    {
-      "name": "Spawn4",
-      "path": "SpawnPoints/Spawn4",
-      "active": true,
-      "position": [0.000, 0.000, 5.000],
-      "rotation": [0.000, 0.000, 0.000],
-      "scale": [1.000, 1.000, 1.000]
-    },
     {
       "name": "Cube",
       "path": "Cube",
@@ -90,6 +50,240 @@
       "position": [-15.420, -2.160, -1.570],
       "rotation": [0.000, 0.000, 0.000],
       "scale": [0.840, 12.970, 20.430]
-    }
+    },
+    {
+      "name": "Cube (1)",
+      "path": "Cube (1)",
+      "active": true,
+      "position": [6.190, -2.160, -0.780],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [0.840, 12.970, 20.430]
+    },
+    {
+      "name": "ControlPoint",
+      "path": "ControlPoint",
+      "active": true,
+      "position": [-4.360, 0.000, -0.780],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [20.000, 5.000, 20.000]
+    },
+    {
+      "name": "SpawnPointsBlue",
+      "path": "SpawnPointsBlue",
+      "active": true,
+      "position": [-5.645, 0.000, 25.910],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "SpawnPoint_Blue_75374",
+      "path": "SpawnPointsBlue/SpawnPoint_Blue_75374",
+      "active": true,
+      "position": [-0.690, 0.000, 5.550],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "SpawnPointsRed",
+      "path": "SpawnPointsRed",
+      "active": true,
+      "position": [-5.490, 0.000, -22.120],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "SpawnPoint_Red_75368",
+      "path": "SpawnPointsRed/SpawnPoint_Red_75368",
+      "active": true,
+      "position": [-1.380, 0.000, -1.140],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "GameModeManager",
+      "path": "GameModeManager",
+      "active": true,
+      "position": [-10.276, 0.000, 1.387],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity"
+      ]    },
+    {
+      "name": "GameModeCanvas",
+      "path": "GameModeCanvas",
+      "active": true,
+      "position": [960.000, 540.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "CanvasScaler",
+        "GraphicRaycaster"
+      ]    },
+    {
+      "name": "ScorePanel",
+      "path": "GameModeCanvas/ScorePanel",
+      "active": true,
+      "position": [0.000, 490.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "BlueScoreText",
+      "path": "GameModeCanvas/ScorePanel/BlueScoreText",
+      "active": true,
+      "position": [-860.000, -50.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "0",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "RedScoreText",
+      "path": "GameModeCanvas/ScorePanel/RedScoreText",
+      "active": true,
+      "position": [660.000, -50.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "0",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "TimerText",
+      "path": "GameModeCanvas/ScorePanel/TimerText",
+      "active": true,
+      "position": [0.000, -50.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "New Text",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "CapturePanel",
+      "path": "GameModeCanvas/CapturePanel",
+      "active": true,
+      "position": [0.000, -440.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "CaptureStatusText",
+      "path": "GameModeCanvas/CapturePanel/CaptureStatusText",
+      "active": true,
+      "position": [0.000, 35.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "NEUTRAL",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "CaptureProgressBar",
+      "path": "GameModeCanvas/CapturePanel/CaptureProgressBar",
+      "active": true,
+      "position": [0.000, -20.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Slider"
+      ]    },
+    {
+      "name": "Background",
+      "path": "GameModeCanvas/CapturePanel/CaptureProgressBar/Background",
+      "active": true,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "Fill Area",
+      "path": "GameModeCanvas/CapturePanel/CaptureProgressBar/Fill Area",
+      "active": true,
+      "position": [-5.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000]
+    },
+    {
+      "name": "CaptureProgressFill",
+      "path": "GameModeCanvas/CapturePanel/CaptureProgressBar/Fill Area/CaptureProgressFill",
+      "active": true,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "VictoryPanel",
+      "path": "GameModeCanvas/VictoryPanel",
+      "active": false,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "VictoryWindow",
+      "path": "GameModeCanvas/VictoryPanel/VictoryWindow",
+      "active": false,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "Image"
+      ]    },
+    {
+      "name": "VictoryText",
+      "path": "GameModeCanvas/VictoryPanel/VictoryWindow/VictoryText",
+      "active": false,
+      "position": [0.000, 150.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "BLUE TEAM WINS!",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "FinalScoreText",
+      "path": "GameModeCanvas/VictoryPanel/VictoryWindow/FinalScoreText",
+      "active": false,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "text": "Final Score\\nBlue: 0 | Red: 0",
+      "scripts": [
+        "TextMeshProUGUI"
+      ]    },
+    {
+      "name": "EventSystem",
+      "path": "EventSystem",
+      "active": true,
+      "position": [0.000, 0.000, 0.000],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "EventSystem",
+        "InputSystemUIInputModule"
+      ]    },
+    {
+      "name": "ScoreNetworkSync",
+      "path": "ScoreNetworkSync",
+      "active": true,
+      "position": [5.770, 2.041, -5.270],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity"
+      ]    }
   ]
 }
