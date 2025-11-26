@@ -17,7 +17,7 @@ namespace ElitesAndPawns.Core
             {
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<SimpleTeamManager>();
+                    _instance = FindAnyObjectByType<SimpleTeamManager>();
                     if (_instance == null)
                     {
                         GameObject go = new GameObject("SimpleTeamManager");

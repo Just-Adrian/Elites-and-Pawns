@@ -76,7 +76,7 @@ namespace ElitesAndPawns.Core
         /// </summary>
         public static SpawnPoint GetRandomSpawnPoint(FactionType team)
         {
-            SpawnPoint[] allSpawnPoints = FindObjectsOfType<SpawnPoint>();
+            SpawnPoint[] allSpawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsSortMode.None);
             
             // Filter to active spawn points for this team
             System.Collections.Generic.List<SpawnPoint> validSpawnPoints = 

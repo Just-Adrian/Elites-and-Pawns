@@ -28,7 +28,7 @@ namespace ElitesAndPawns.Networking
         private void Update()
         {
             // Check if there are multiple NetworkManagers
-            var managers = FindObjectsOfType<NetworkManager>();
+            var managers = FindObjectsByType<NetworkManager>(FindObjectsSortMode.None);
             if (managers.Length > 1)
             {
                 Debug.LogError($"[NetworkManagerDebug] MULTIPLE NetworkManagers detected! Count: {managers.Length}");

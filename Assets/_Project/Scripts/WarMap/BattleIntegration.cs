@@ -10,6 +10,11 @@ namespace ElitesAndPawns.WarMap
     /// <summary>
     /// Integrates FPS battle results with the War Map system.
     /// Tracks battle progress and reports results back to the strategic layer.
+    /// 
+    /// In the new squad-based system, this class works with NodeOccupancy to:
+    /// - Track which squads are involved in battles
+    /// - Consume spawn tickets from squads when players respawn
+    /// - Report battle outcomes to affect node control
     /// </summary>
     public class BattleIntegration : NetworkBehaviour
     {
@@ -34,21 +39,18 @@ namespace ElitesAndPawns.WarMap
         
         [Header("Battle Configuration")]
         [SerializeField] private bool isBattleScene = false;
-        [SerializeField] private int battleNodeID = -1; // Set when loading from war map
+        [SerializeField] private int battleNodeID = -1;
         [SerializeField] private Team attackingFaction = Team.None;
         [SerializeField] private Team defendingFaction = Team.None;
         
         [Header("Battle Progress")]
         [SerializeField] private float battleStartTime;
-        [SerializeField] private int targetScore = 100; // Score needed to win
-        [SerializeField] private float maxBattleDuration = 900f; // 15 minutes max
+        [SerializeField] private int targetScore = 100;
+        [SerializeField] private float maxBattleDuration = 900f;
         
         [Header("Player Tracking")]
         private Dictionary<string, PlayerBattleStats> playerStats = new Dictionary<string, PlayerBattleStats>();
         private Dictionary<Team, int> factionPlayerCount = new Dictionary<Team, int>();
-        
-        [Header("Token Rewards")]
-        private Dictionary<string, int> pendingTokenRewards = new Dictionary<string, int>();
         
         // Network synced battle state
         [SyncVar]
@@ -65,6 +67,8 @@ namespace ElitesAndPawns.WarMap
         public Team WinningFaction => winningFaction;
         public float BattleDuration => Time.time - battleStartTime;
         public int BattleNodeID => battleNodeID;
+        public Team AttackingFaction => attackingFaction;
+        public Team DefendingFaction => defendingFaction;
         
         #endregion
         
@@ -72,9 +76,7 @@ namespace ElitesAndPawns.WarMap
         
         public static event System.Action<Team> OnBattleStarted;
         public static event System.Action<BattleResult> OnBattleEnded;
-        #pragma warning disable 0067 // Event never used - planned for player scoring system
         public static event System.Action<string, int> OnPlayerScored;
-        #pragma warning restore 0067
         
         #endregion
         
@@ -89,7 +91,6 @@ namespace ElitesAndPawns.WarMap
             }
             _instance = this;
             
-            // Check if this is a battle scene
             CheckIfBattleScene();
         }
         
@@ -113,7 +114,6 @@ namespace ElitesAndPawns.WarMap
             if (!isServer || !battleActive)
                 return;
                 
-            // Check for battle timeout
             if (BattleDuration >= maxBattleDuration)
             {
                 EndBattleByTimeout();
@@ -126,23 +126,17 @@ namespace ElitesAndPawns.WarMap
         
         private void CheckIfBattleScene()
         {
-            // Determine if we're in a battle scene
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             isBattleScene = (sceneName == "NetworkTest" || sceneName.Contains("Battle"));
             
             if (isBattleScene)
             {
-                // Load battle parameters (would come from scene loading parameters)
                 LoadBattleParameters();
             }
         }
         
         private void LoadBattleParameters()
         {
-            // In a full implementation, these would be passed from the War Map
-            // when loading the battle scene. For now, we'll use PlayerPrefs or
-            // static data transfer
-            
             battleNodeID = PlayerPrefs.GetInt("BattleNodeID", 0);
             attackingFaction = (Team)PlayerPrefs.GetInt("AttackingFaction", 1);
             defendingFaction = (Team)PlayerPrefs.GetInt("DefendingFaction", 2);
@@ -158,7 +152,6 @@ namespace ElitesAndPawns.WarMap
             battleStartTime = Time.time;
             winningFaction = Team.None;
             
-            // Initialize faction player counts
             factionPlayerCount[Team.Blue] = 0;
             factionPlayerCount[Team.Red] = 0;
             factionPlayerCount[Team.Green] = 0;
@@ -177,25 +170,78 @@ namespace ElitesAndPawns.WarMap
             if (!isBattleScene)
                 return;
             
-            // Subscribe to game mode events
-            if (ScoreNetworkSync.Instance != null)
-            {
-                // We'll track score changes
-            }
-            
-            // Subscribe to player events
-            // Note: PlayerHealth uses instance events, not static
-            // We'll need to hook these up when players spawn
-            
-            // Subscribe to control point events
-            ControlPoint.OnPointCaptured += (faction) => OnPointCaptured((Team)(int)faction, 10); // Convert FactionType to Team
+            ControlPoint.OnPointCaptured += (faction) => OnPointCaptured((Team)(int)faction, 10);
         }
         
         private void UnsubscribeFromGameEvents()
         {
-            // Player events are instance-based and handled per player
-            // Control point events would need proper unsubscribe with same lambda
-            // For simplicity, ControlPoint static event will be cleaned up on scene change
+            // Events cleaned up on scene change
+        }
+        
+        #endregion
+        
+        #region Spawn Ticket Integration
+        
+        /// <summary>
+        /// Request a spawn ticket for a player. Integrates with NodeOccupancy.
+        /// </summary>
+        /// <param name="playerNetId">Network ID of the spawning player</param>
+        /// <param name="faction">Faction of the player</param>
+        /// <param name="squadId">Output: ID of the squad that provided the ticket</param>
+        /// <param name="squadOwnerNetId">Output: Net ID of the squad owner</param>
+        /// <returns>True if spawn is allowed</returns>
+        [Server]
+        public bool RequestSpawn(uint playerNetId, Team faction, out string squadId, out uint squadOwnerNetId)
+        {
+            squadId = "";
+            squadOwnerNetId = 0;
+            
+            if (!battleActive)
+            {
+                Debug.LogWarning("[BattleIntegration] Cannot spawn - battle not active");
+                return false;
+            }
+            
+            // Use NodeOccupancy to get a spawn ticket from available squads
+            if (NodeOccupancy.Instance != null)
+            {
+                return NodeOccupancy.Instance.RequestSpawnTicket(
+                    battleNodeID, 
+                    faction, 
+                    playerNetId,
+                    out squadId,
+                    out squadOwnerNetId
+                );
+            }
+            
+            // Fallback if NodeOccupancy not available (for testing without full war map)
+            Debug.LogWarning("[BattleIntegration] NodeOccupancy not available, allowing spawn for testing");
+            return true;
+        }
+        
+        /// <summary>
+        /// Check if a faction has any spawn tickets remaining at this node.
+        /// </summary>
+        [Server]
+        public bool HasSpawnTickets(Team faction)
+        {
+            if (NodeOccupancy.Instance != null)
+            {
+                return NodeOccupancy.Instance.GetFactionManpowerAtNode(battleNodeID, faction) > 0;
+            }
+            return true; // Fallback for testing
+        }
+        
+        /// <summary>
+        /// Get remaining spawn tickets for a faction.
+        /// </summary>
+        public int GetRemainingSpawnTickets(Team faction)
+        {
+            if (NodeOccupancy.Instance != null)
+            {
+                return NodeOccupancy.Instance.GetFactionManpowerAtNode(battleNodeID, faction);
+            }
+            return 999; // Fallback for testing
         }
         
         #endregion
@@ -203,7 +249,7 @@ namespace ElitesAndPawns.WarMap
         #region Player Management
         
         /// <summary>
-        /// Register a player joining the battle
+        /// Register a player joining the battle.
         /// </summary>
         [Server]
         public void RegisterPlayer(string playerId, Team faction, GameObject playerObject = null)
@@ -219,17 +265,14 @@ namespace ElitesAndPawns.WarMap
                 
                 factionPlayerCount[faction]++;
                 
-                // Hook up player events if object provided
                 if (playerObject != null)
                 {
                     var playerHealth = playerObject.GetComponent<PlayerHealth>();
                     if (playerHealth != null)
                     {
-                        // Subscribe to this player's health events
                         playerHealth.OnDeath += (killer) => 
                         {
                             string killerId = killer?.netId.ToString() ?? "";
-                            // Convert FactionType to Team (they have same values)
                             Team killerTeam = (Team)(int)(killer?.Faction ?? ElitesAndPawns.Core.FactionType.None);
                             OnPlayerKilled(playerId, killerId, killerTeam);
                         };
@@ -241,7 +284,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Unregister a player leaving the battle
+        /// Unregister a player leaving the battle.
         /// </summary>
         [Server]
         public void UnregisterPlayer(string playerId)
@@ -250,13 +293,6 @@ namespace ElitesAndPawns.WarMap
             {
                 var stats = playerStats[playerId];
                 factionPlayerCount[stats.Faction]--;
-                
-                // Calculate participation reward
-                float participationTime = Time.time - stats.JoinTime;
-                if (participationTime > 60f) // At least 1 minute participation
-                {
-                    AwardTokens(playerId, stats.Faction, TokenSystem.TokenRewardType.Participation);
-                }
                 
                 Debug.Log($"[BattleIntegration] Player {playerId} left battle");
             }
@@ -271,26 +307,27 @@ namespace ElitesAndPawns.WarMap
             if (!isServer || !battleActive)
                 return;
             
-            // Update killer stats
             if (!string.IsNullOrEmpty(killerId) && playerStats.ContainsKey(killerId))
             {
                 playerStats[killerId].Kills++;
                 playerStats[killerId].Score += 10;
                 
-                // Award kill tokens
-                AwardTokens(killerId, killerTeam, TokenSystem.TokenRewardType.Kill);
+                OnPlayerScored?.Invoke(killerId, 10);
             }
             
-            // Update victim stats
             if (playerStats.ContainsKey(victimId))
             {
                 playerStats[victimId].Deaths++;
             }
-        }
-        
-        private void OnPlayerRespawned(string playerId)
-        {
-            // Could track respawn stats if needed
+            
+            // Check if losing faction is out of spawn tickets
+            Team victimFaction = playerStats.ContainsKey(victimId) ? playerStats[victimId].Faction : Team.None;
+            if (victimFaction != Team.None && !HasSpawnTickets(victimFaction))
+            {
+                // Faction eliminated - they lose
+                Team winner = (victimFaction == attackingFaction) ? defendingFaction : attackingFaction;
+                EndBattle(winner);
+            }
         }
         
         private void OnPointCaptured(Team capturingTeam, int pointsAwarded)
@@ -298,20 +335,15 @@ namespace ElitesAndPawns.WarMap
             if (!isServer || !battleActive)
                 return;
             
-            // Award capture tokens to all players of the capturing team in the zone
             foreach (var stats in playerStats.Values)
             {
                 if (stats.Faction == capturingTeam)
                 {
-                    // In a full implementation, check if player is actually in the capture zone
                     stats.CapturePoints++;
                     stats.Score += 5;
-                    
-                    AwardTokens(stats.PlayerId, capturingTeam, TokenSystem.TokenRewardType.Capture);
                 }
             }
             
-            // Check for battle end conditions
             CheckBattleEndConditions();
         }
         
@@ -325,7 +357,6 @@ namespace ElitesAndPawns.WarMap
             if (!battleActive)
                 return;
             
-            // Get current scores
             int blueScore = 0;
             int redScore = 0;
             
@@ -335,7 +366,6 @@ namespace ElitesAndPawns.WarMap
                 redScore = ScoreNetworkSync.Instance.RedScore;
             }
             
-            // Check if any team has reached the target score
             if (blueScore >= targetScore)
             {
                 EndBattle(Team.Blue);
@@ -349,7 +379,6 @@ namespace ElitesAndPawns.WarMap
         [Server]
         private void EndBattleByTimeout()
         {
-            // Determine winner based on current score
             int blueScore = ScoreNetworkSync.Instance?.BlueScore ?? 0;
             int redScore = ScoreNetworkSync.Instance?.RedScore ?? 0;
             
@@ -359,7 +388,7 @@ namespace ElitesAndPawns.WarMap
             else if (redScore > blueScore)
                 winner = Team.Red;
             else
-                winner = defendingFaction; // Defender wins ties
+                winner = defendingFaction;
             
             EndBattle(winner);
         }
@@ -373,20 +402,14 @@ namespace ElitesAndPawns.WarMap
             battleActive = false;
             winningFaction = winner;
             
-            // Calculate battle results
             BattleResult result = CalculateBattleResult(winner);
             
-            // Process all pending token rewards
-            ProcessPendingTokenRewards();
-            
-            // Send results back to War Map
             SendResultsToWarMap(result);
             
             OnBattleEnded?.Invoke(result);
             
             Debug.Log($"[BattleIntegration] Battle ended! Winner: {winner}");
             
-            // Return to war map after delay
             StartCoroutine(ReturnToWarMap());
         }
         
@@ -405,7 +428,6 @@ namespace ElitesAndPawns.WarMap
                 PlayersParticipated = playerStats.Count
             };
             
-            // Calculate control change based on battle performance
             int winnerScore = 0;
             int loserScore = 0;
             
@@ -423,15 +445,9 @@ namespace ElitesAndPawns.WarMap
                 }
             }
             
-            // Control change based on score difference
             float scoreDiff = winnerScore - loserScore;
             result.ControlChange = Mathf.Clamp(scoreDiff * 0.5f, 10f, 50f);
             
-            // Token rewards/losses
-            result.TokensWon = Mathf.RoundToInt(winnerScore * 2);
-            result.TokensLost = Mathf.RoundToInt(loserScore);
-            
-            // Add player scores
             foreach (var stats in playerStats.Values)
             {
                 result.PlayerScores[stats.PlayerId] = stats.Score;
@@ -442,104 +458,44 @@ namespace ElitesAndPawns.WarMap
         
         #endregion
         
-        #region Token Management
-        
-        [Server]
-        private void AwardTokens(string playerId, Team faction, TokenSystem.TokenRewardType rewardType)
-        {
-            if (TokenSystem.Instance == null)
-            {
-                // Store for later if TokenSystem not available
-                if (!pendingTokenRewards.ContainsKey(playerId))
-                    pendingTokenRewards[playerId] = 0;
-                    
-                pendingTokenRewards[playerId] += GetTokenRewardAmount(rewardType);
-                return;
-            }
-            
-            // Award immediately if possible
-            TokenSystem.Instance.AwardPlayerTokens(faction, playerId, rewardType);
-        }
-        
-        [Server]
-        private void ProcessPendingTokenRewards()
-        {
-            if (TokenSystem.Instance == null)
-                return;
-            
-            foreach (var kvp in pendingTokenRewards)
-            {
-                if (playerStats.ContainsKey(kvp.Key))
-                {
-                    var stats = playerStats[kvp.Key];
-                    TokenSystem.Instance.AddTokens(stats.Faction, kvp.Value, 
-                        $"Battle rewards for player {kvp.Key}");
-                }
-            }
-            
-            pendingTokenRewards.Clear();
-        }
-        
-        private int GetTokenRewardAmount(TokenSystem.TokenRewardType rewardType)
-        {
-            switch (rewardType)
-            {
-                case TokenSystem.TokenRewardType.Kill:
-                    return 10;
-                case TokenSystem.TokenRewardType.Capture:
-                    return 25;
-                case TokenSystem.TokenRewardType.Participation:
-                    return 20;
-                default:
-                    return 5;
-            }
-        }
-        
-        #endregion
-        
         #region War Map Communication
         
         [Server]
         private void SendResultsToWarMap(BattleResult result)
         {
-            // Save results to be retrieved by War Map
             SaveBattleResults(result);
             
-            // If WarMapManager is in the scene (same server), update directly
             if (WarMapManager.Instance != null)
             {
                 WarMapManager.Instance.EndBattle(battleNodeID, result);
             }
             else
             {
-                // In a distributed server architecture, this would send
-                // results to the war map server via network message
                 Debug.Log("[BattleIntegration] Saving battle results for war map server");
+            }
+            
+            // Clear spawn history for this node
+            if (NodeOccupancy.Instance != null)
+            {
+                NodeOccupancy.Instance.ClearSpawnHistory(battleNodeID);
             }
         }
         
         private void SaveBattleResults(BattleResult result)
         {
-            // Save to PlayerPrefs for simple persistence
-            // In production, this would use a proper database
-            
             PlayerPrefs.SetInt("LastBattleNode", battleNodeID);
             PlayerPrefs.SetInt("LastBattleWinner", (int)result.WinnerFaction);
             PlayerPrefs.SetFloat("LastBattleControlChange", result.ControlChange);
-            PlayerPrefs.SetInt("LastBattleTokensWon", result.TokensWon);
             PlayerPrefs.Save();
         }
         
         private System.Collections.IEnumerator ReturnToWarMap()
         {
-            yield return new WaitForSeconds(5f); // Show results for 5 seconds
+            yield return new WaitForSeconds(5f);
             
-            // Return to war map scene
             if (NetworkManager.singleton != null)
             {
-                // This would need proper scene management in production
                 Debug.Log("[BattleIntegration] Returning to War Map...");
-                // NetworkManager.singleton.ServerChangeScene("WarMap");
             }
         }
         
@@ -548,22 +504,22 @@ namespace ElitesAndPawns.WarMap
         #region Client RPCs
         
         [ClientRpc]
-        public void RpcShowBattleResults(Team winner, int tokensEarned)
+        public void RpcShowBattleResults(Team winner)
         {
             Debug.Log($"[BattleIntegration-Client] Battle ended! Winner: {winner}");
-            Debug.Log($"[BattleIntegration-Client] You earned {tokensEarned} tokens");
-            
-            // Show UI notification
-            // In production, this would display a proper results screen
+        }
+        
+        [ClientRpc]
+        public void RpcUpdateSpawnTickets(int blueTickets, int redTickets)
+        {
+            // UI can use this to display remaining spawn tickets
+            Debug.Log($"[BattleIntegration-Client] Spawn tickets - Blue: {blueTickets}, Red: {redTickets}");
         }
         
         #endregion
         
         #region Data Classes
         
-        /// <summary>
-        /// Tracks individual player statistics during a battle
-        /// </summary>
         [System.Serializable]
         private class PlayerBattleStats
         {
@@ -575,6 +531,8 @@ namespace ElitesAndPawns.WarMap
             public int Score;
             public float JoinTime;
             public float PlayTime;
+            public string SpawnedFromSquadId;
+            public uint SpawnedFromSquadOwner;
         }
         
         #endregion

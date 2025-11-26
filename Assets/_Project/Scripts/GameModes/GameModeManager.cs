@@ -17,7 +17,7 @@ namespace ElitesAndPawns.GameModes
             {
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<GameModeManager>();
+                    _instance = FindAnyObjectByType<GameModeManager>();
                 }
                 return _instance;
             }
@@ -72,7 +72,7 @@ namespace ElitesAndPawns.GameModes
             // Find control point if not assigned
             if (controlPoint == null)
             {
-                controlPoint = FindObjectOfType<ControlPoint>();
+                controlPoint = FindAnyObjectByType<ControlPoint>();
                 if (debugMode)
                 {
                     if (controlPoint != null)

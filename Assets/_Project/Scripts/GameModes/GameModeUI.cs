@@ -41,7 +41,7 @@ namespace ElitesAndPawns.GameModes
         {
             // Get references
             gameManager = GameModeManager.Instance;
-            controlPoint = FindObjectOfType<ControlPoint>();
+            controlPoint = FindAnyObjectByType<ControlPoint>();
             scoreSync = ScoreNetworkSync.Instance;
 
             // Subscribe to events

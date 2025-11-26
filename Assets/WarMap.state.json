@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "sceneName": "WarMap",
-  "exportTimestamp": "2025-11-24 13:03:23",
+  "exportTimestamp": "2025-11-25 23:42:52",
   "gameObjects": [
     {
       "name": "Main Camera",
@@ -24,8 +24,8 @@
         "UniversalAdditionalLightData"
       ]    },
     {
-      "name": "GameObject",
-      "path": "GameObject",
+      "name": "WarMapTestHarness",
+      "path": "WarMapTestHarness",
       "active": true,
       "position": [-692.695, 0.000, -1948.240],
       "rotation": [0.000, 0.000, 0.000],
@@ -43,6 +43,50 @@
       "scripts": [
         "NetworkManager",
         "KcpTransport"
+      ]    },
+    {
+      "name": "WarMapManager",
+      "path": "WarMapManager",
+      "active": true,
+      "position": [-0.570, 3.156, -9.213],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity",
+        "WarMapManager"
+      ]    },
+    {
+      "name": "NodeOccupancy",
+      "path": "NodeOccupancy",
+      "active": true,
+      "position": [-0.570, 3.156, -9.213],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity",
+        "NodeOccupancy"
+      ]    },
+    {
+      "name": "CaptureController",
+      "path": "CaptureController",
+      "active": true,
+      "position": [-0.570, 3.156, -9.213],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity",
+        "CaptureController"
+      ]    },
+    {
+      "name": "TokenSystem",
+      "path": "TokenSystem",
+      "active": true,
+      "position": [-0.570, 3.156, -9.213],
+      "rotation": [0.000, 0.000, 0.000],
+      "scale": [1.000, 1.000, 1.000],
+      "scripts": [
+        "NetworkIdentity",
+        "TokenSystem"
       ]    }
   ]
 }

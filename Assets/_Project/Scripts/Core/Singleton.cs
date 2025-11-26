@@ -27,7 +27,7 @@ namespace ElitesAndPawns.Core
                     if (instance == null)
                     {
                         // Find existing instance
-                        instance = FindObjectOfType<T>();
+                        instance = FindAnyObjectByType<T>();
 
                         if (instance == null)
                         {

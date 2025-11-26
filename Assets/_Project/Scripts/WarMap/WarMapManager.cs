@@ -38,14 +38,11 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private WarMapConfiguration mapConfig;
         [SerializeField] private GameObject warMapNodePrefab;
         [SerializeField] private Transform nodeContainer;
-        #pragma warning disable 0414 // Assigned but never used - planned for future node spacing logic
         [SerializeField] private float nodeSpacing = 200f;
-        #pragma warning restore 0414
         
         [Header("Battle Configuration")]
-        #pragma warning disable 0414 // Assigned but never used - planned for scene loading
         [SerializeField] private string battleSceneName = "NetworkTest";
-        #pragma warning restore 0414
+        [SerializeField] private int battleInitiationCost = 100;
         [SerializeField] private int maxSimultaneousBattles = 3; // Multiple concurrent battles
         [SerializeField] private float battleTimeout = 1800f; // 30 minutes max battle time
         
@@ -411,9 +408,9 @@ namespace ElitesAndPawns.WarMap
             }
             
             // Check if faction can afford the attack
-            if (!TokenSystem.Instance.InitiateBattle(attackingFaction, node))
+            if (TokenSystem.Instance == null || !TokenSystem.Instance.SpendTokens(attackingFaction, battleInitiationCost, $"Battle initiation at {node.NodeName}"))
             {
-                Debug.LogWarning($"[WarMapManager] {attackingFaction} cannot afford to attack (needs 100 tokens)");
+                Debug.LogWarning($"[WarMapManager] {attackingFaction} cannot afford to attack (needs {battleInitiationCost} tokens)");
                 return;
             }
             
@@ -480,8 +477,8 @@ namespace ElitesAndPawns.WarMap
                 // Apply battle results to the node
                 node.EndBattle(result);
                 
-                // Process token rewards
-                TokenSystem.Instance.ProcessBattleRewards(result);
+                // Note: Tokens are NOT awarded for winning battles.
+                // Tokens only come from holding territory (production cycles).
             }
             
             // Complete the battle session
@@ -588,7 +585,7 @@ namespace ElitesAndPawns.WarMap
                 }
                 
                 // Victory by token accumulation
-                if (TokenSystem.Instance.GetFactionTokens(faction) >= tokensRequiredForVictory)
+                if (TokenSystem.Instance != null && TokenSystem.Instance.GetFactionTokens(faction) >= tokensRequiredForVictory)
                 {
                     EndWar(faction);
                     return;
@@ -656,7 +653,10 @@ namespace ElitesAndPawns.WarMap
             }
             
             // Factor in tokens
-            strength += TokenSystem.Instance.GetFactionTokens(faction) * 0.1f;
+            if (TokenSystem.Instance != null)
+            {
+                strength += TokenSystem.Instance.GetFactionTokens(faction) * 0.1f;
+            }
             
             return strength;
         }

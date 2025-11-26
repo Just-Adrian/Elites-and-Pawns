@@ -216,7 +216,7 @@ namespace ElitesAndPawns.Networking
             blueSpawnPoints.Clear();
             redSpawnPoints.Clear();
             
-            SpawnPoint[] allSpawnPoints = FindObjectsOfType<SpawnPoint>();
+            SpawnPoint[] allSpawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsSortMode.None);
             
             foreach (var sp in allSpawnPoints)
             {

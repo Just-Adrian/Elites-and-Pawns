@@ -19,20 +19,18 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private int nodeID;
         [SerializeField] private string nodeName = "Territory";
         [SerializeField] private NodeType nodeType = NodeType.Standard;
-        [SerializeField] private int baseTokenGeneration = 10; // Tokens generated per cycle
+        [SerializeField] private int baseTokenGeneration = 10;
         
         [Header("Current State")]
         [SerializeField] private Team controllingFaction = Team.None;
-        [SerializeField] private float controlPercentage = 0f; // 0-100%
+        [SerializeField] private float controlPercentage = 0f;
         [SerializeField] private bool isContested = false;
         [SerializeField] private bool isBattleActive = false;
         
         [Header("Strategic Value")]
-        #pragma warning disable 0414 // Assigned but never used - planned for combat calculations
-        [SerializeField] private int attackBonus = 0; // Bonus to attack rolls
-        [SerializeField] private int defenseBonus = 0; // Bonus to defense
-        #pragma warning restore 0414
-        [SerializeField] private float tokenMultiplier = 1f; // Multiplier for token generation
+        [SerializeField] private int attackBonus = 0;
+        [SerializeField] private int defenseBonus = 0;
+        [SerializeField] private float tokenMultiplier = 1f;
         
         [Header("Connected Nodes")]
         [SerializeField] private List<int> connectedNodeIDs = new List<int>();
@@ -53,6 +51,9 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private Color greenColor = Color.green;
         [SerializeField] private Color contestedColor = Color.yellow;
         
+        [Header("Debug")]
+        [SerializeField] private bool verboseLogging = false;
+        
         #endregion
         
         #region Properties
@@ -67,9 +68,21 @@ namespace ElitesAndPawns.WarMap
         public int BaseTokenGeneration => baseTokenGeneration;
         public float TokenMultiplier => tokenMultiplier;
         public List<WarMapNode> ConnectedNodes => connectedNodes;
+        public List<int> ConnectedNodeIDs => connectedNodeIDs;
         
         /// <summary>
-        /// Calculate the actual token generation for this node
+        /// Attack bonus provided by this node (for future FPS integration).
+        /// </summary>
+        public int AttackBonus => attackBonus;
+        
+        /// <summary>
+        /// Defense bonus provided by this node (for future FPS integration).
+        /// </summary>
+        public int DefenseBonus => defenseBonus;
+        
+        /// <summary>
+        /// Calculate the actual token generation for this node.
+        /// Returns 0 if contested, in battle, or uncontrolled.
         /// </summary>
         public int CalculateTokenGeneration()
         {
@@ -80,37 +93,70 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Check if a faction can attack this node
+        /// Check if a faction can attack this node (optimized).
+        /// Requirements: not own node, no active battle, and attacker controls an adjacent node.
         /// </summary>
         public bool CanBeAttackedBy(Team attackingFaction)
         {
-            // Can't attack your own node
+            // Quick rejections first (no allocations, simple checks)
+            if (attackingFaction == Team.None)
+                return false;
+            
             if (controllingFaction == attackingFaction)
-            {
-                Debug.Log($"[Node {nodeName}] Cannot attack - {attackingFaction} already controls this node");
                 return false;
-            }
-                
-            // Can't attack if battle is already active
+            
             if (isBattleActive)
-            {
-                Debug.Log($"[Node {nodeName}] Cannot attack - battle already active");
                 return false;
-            }
-                
-            // Check if attacker controls any connected node
-            Debug.Log($"[Node {nodeName}] Checking {connectedNodes.Count} connected nodes for {attackingFaction} control");
-            foreach (var connectedNode in connectedNodes)
+            
+            // Check adjacency - early return on first match
+            for (int i = 0; i < connectedNodes.Count; i++)
             {
-                Debug.Log($"[Node {nodeName}] Connected node {connectedNode.NodeName} controlled by {connectedNode.controllingFaction}");
-                if (connectedNode.controllingFaction == attackingFaction)
-                {
-                    Debug.Log($"[Node {nodeName}] CAN attack - {attackingFaction} controls connected node {connectedNode.NodeName}");
+                if (connectedNodes[i].controllingFaction == attackingFaction)
                     return true;
-                }
             }
             
-            Debug.Log($"[Node {nodeName}] Cannot attack - {attackingFaction} controls no connected nodes");
+            if (verboseLogging)
+            {
+                Debug.Log($"[Node {nodeName}] {attackingFaction} cannot attack - no adjacent controlled nodes");
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// Check if a faction can attack this node, with detailed reason output.
+        /// Use this for UI feedback instead of CanBeAttackedBy for better performance.
+        /// </summary>
+        public bool CanBeAttackedBy(Team attackingFaction, out string reason)
+        {
+            reason = "";
+            
+            if (attackingFaction == Team.None)
+            {
+                reason = "Invalid faction";
+                return false;
+            }
+            
+            if (controllingFaction == attackingFaction)
+            {
+                reason = "Already controlled by your faction";
+                return false;
+            }
+            
+            if (isBattleActive)
+            {
+                reason = "Battle already in progress";
+                return false;
+            }
+            
+            // Check adjacency
+            for (int i = 0; i < connectedNodes.Count; i++)
+            {
+                if (connectedNodes[i].controllingFaction == attackingFaction)
+                    return true;
+            }
+            
+            reason = "No adjacent controlled territory";
             return false;
         }
         
@@ -134,7 +180,6 @@ namespace ElitesAndPawns.WarMap
         
         void Start()
         {
-            // Connect to other nodes after all nodes are spawned
             ConnectToNodes();
             UpdateVisuals();
         }
@@ -144,7 +189,7 @@ namespace ElitesAndPawns.WarMap
         #region Public Methods
         
         /// <summary>
-        /// Initialize this node with data
+        /// Initialize this node with configuration data.
         /// </summary>
         public void Initialize(int id, string name, NodeType type, List<int> connections)
         {
@@ -158,6 +203,7 @@ namespace ElitesAndPawns.WarMap
             {
                 case NodeType.Capital:
                     baseTokenGeneration = 20;
+                    attackBonus = 0;
                     defenseBonus = 10;
                     tokenMultiplier = 1.5f;
                     break;
@@ -169,11 +215,15 @@ namespace ElitesAndPawns.WarMap
                     break;
                 case NodeType.Resource:
                     baseTokenGeneration = 25;
+                    attackBonus = 0;
+                    defenseBonus = 0;
                     tokenMultiplier = 2f;
                     break;
                 case NodeType.Standard:
                 default:
                     baseTokenGeneration = 10;
+                    attackBonus = 0;
+                    defenseBonus = 0;
                     tokenMultiplier = 1f;
                     break;
             }
@@ -182,7 +232,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Set the control state of this node
+        /// Set the control state of this node.
         /// </summary>
         public void SetControl(Team faction, float percentage)
         {
@@ -190,7 +240,6 @@ namespace ElitesAndPawns.WarMap
             controllingFaction = faction;
             controlPercentage = Mathf.Clamp(percentage, 0f, 100f);
             
-            // If control is 100%, the node is no longer contested
             if (controlPercentage >= 100f)
             {
                 isContested = false;
@@ -205,7 +254,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Mark this node as contested
+        /// Mark this node as contested.
         /// </summary>
         public void SetContested(bool contested, Team attackingFaction = Team.None)
         {
@@ -220,13 +269,13 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Start a battle at this node
+        /// Start a battle at this node.
         /// </summary>
         public void StartBattle(Team attackingFaction)
         {
             if (!CanBeAttackedBy(attackingFaction))
             {
-                Debug.LogWarning($"Node {nodeName} cannot be attacked by {attackingFaction}!");
+                Debug.LogWarning($"[WarMapNode] {nodeName} cannot be attacked by {attackingFaction}");
                 return;
             }
             
@@ -238,40 +287,36 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// End the battle at this node with the given result
+        /// End the battle at this node with the given result.
         /// </summary>
         public void EndBattle(BattleResult result)
         {
             isBattleActive = false;
             
-            // Apply battle result
             if (result.WinnerFaction != Team.None)
             {
                 if (result.WinnerFaction != controllingFaction)
                 {
-                    // Attacker won - change control
+                    // Attacker won
                     float newControl = Mathf.Max(0f, controlPercentage - result.ControlChange);
                     
                     if (newControl <= 0f)
                     {
-                        // Complete takeover - node is no longer contested
                         SetControl(result.WinnerFaction, result.ControlChange);
                         SetContested(false);
                     }
                     else
                     {
-                        // Partial control loss - still contested
                         SetControl(controllingFaction, newControl);
                         SetContested(true, result.WinnerFaction);
                     }
                 }
                 else
                 {
-                    // Defender won - strengthen control
+                    // Defender won
                     float newControl = Mathf.Min(100f, controlPercentage + result.ControlChange);
                     SetControl(controllingFaction, newControl);
                     
-                    // If defender reached 100%, no longer contested
                     if (newControl >= 100f)
                     {
                         SetContested(false);
@@ -284,24 +329,33 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Check if this node connects to another node
+        /// Check if this node connects to another node.
         /// </summary>
         public bool IsConnectedTo(WarMapNode otherNode)
         {
+            if (otherNode == null) return false;
             return connectedNodes.Contains(otherNode);
         }
         
         /// <summary>
-        /// Check if this node connects to a node controlled by the given faction
+        /// Check if this node connects to a node controlled by the given faction.
         /// </summary>
         public bool IsAdjacentToFaction(Team faction)
         {
-            foreach (var node in connectedNodes)
+            for (int i = 0; i < connectedNodes.Count; i++)
             {
-                if (node.controllingFaction == faction)
+                if (connectedNodes[i].controllingFaction == faction)
                     return true;
             }
             return false;
+        }
+        
+        /// <summary>
+        /// Force reconnection to other nodes. Call after dynamic node creation.
+        /// </summary>
+        public void RefreshConnections()
+        {
+            ConnectToNodes();
         }
         
         #endregion
@@ -309,29 +363,42 @@ namespace ElitesAndPawns.WarMap
         #region Private Methods
         
         /// <summary>
-        /// Connect this node to other nodes in the scene
+        /// Connect this node to other nodes in the scene based on connectedNodeIDs.
         /// </summary>
         private void ConnectToNodes()
         {
             connectedNodes.Clear();
-            WarMapNode[] allNodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
             
+            if (connectedNodeIDs.Count == 0)
+                return;
+            
+            // Build a lookup dictionary for O(n) instead of O(n*m)
+            WarMapNode[] allNodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
+            var nodeById = new Dictionary<int, WarMapNode>(allNodes.Length);
+            
+            foreach (var node in allNodes)
+            {
+                if (node != this && !nodeById.ContainsKey(node.nodeID))
+                {
+                    nodeById[node.nodeID] = node;
+                }
+            }
+            
+            // Connect using lookup
             foreach (int connectedID in connectedNodeIDs)
             {
-                foreach (var node in allNodes)
+                if (nodeById.TryGetValue(connectedID, out var connectedNode))
                 {
-                    if (node.nodeID == connectedID && node != this)
-                    {
-                        connectedNodes.Add(node);
-                        break;
-                    }
+                    connectedNodes.Add(connectedNode);
                 }
+            }
+            
+            if (verboseLogging)
+            {
+                Debug.Log($"[WarMapNode] {nodeName} connected to {connectedNodes.Count} nodes");
             }
         }
         
-        /// <summary>
-        /// Initialize UI components
-        /// </summary>
         private void InitializeUI()
         {
             if (nodeNameText != null)
@@ -344,70 +411,50 @@ namespace ElitesAndPawns.WarMap
                 battleIndicator.SetActive(false);
         }
         
-        /// <summary>
-        /// Update the visual representation of the node
-        /// </summary>
         private void UpdateVisuals()
         {
-            // Update node color based on faction
             Color targetColor = GetFactionColor();
             
             if (nodeIcon != null)
             {
-                if (isContested)
-                    nodeIcon.color = contestedColor;
-                else
-                    nodeIcon.color = targetColor;
+                nodeIcon.color = isContested ? contestedColor : targetColor;
             }
             
-            // Update control bar
             if (controlBar != null)
             {
                 controlBar.fillAmount = controlPercentage / 100f;
                 controlBar.color = targetColor;
             }
             
-            // Update text displays
             if (nodeNameText != null)
                 nodeNameText.text = $"{nodeName} ({nodeType})";
                 
             if (controlPercentageText != null)
                 controlPercentageText.text = $"{controlPercentage:F0}%";
             
-            // Update indicators
             if (contestedIndicator != null)
                 contestedIndicator.SetActive(isContested);
                 
             if (battleIndicator != null)
                 battleIndicator.SetActive(isBattleActive);
             
-            // CRITICAL: Also update Renderer for test sphere nodes
-            Renderer renderer = GetComponent<Renderer>();
+            // Update 3D renderer for test spheres
+            var renderer = GetComponent<Renderer>();
             if (renderer != null)
             {
-                if (isContested)
-                    renderer.material.color = contestedColor;
-                else
-                    renderer.material.color = targetColor;
+                renderer.material.color = isContested ? contestedColor : targetColor;
             }
         }
         
-        /// <summary>
-        /// Get the color for the current controlling faction
-        /// </summary>
         private Color GetFactionColor()
         {
-            switch (controllingFaction)
+            return controllingFaction switch
             {
-                case Team.Blue:
-                    return blueColor;
-                case Team.Red:
-                    return redColor;
-                case Team.Green:
-                    return greenColor;
-                default:
-                    return neutralColor;
-            }
+                Team.Blue => blueColor,
+                Team.Red => redColor,
+                Team.Green => greenColor,
+                _ => neutralColor
+            };
         }
         
         #endregion
@@ -416,29 +463,29 @@ namespace ElitesAndPawns.WarMap
         
         public enum NodeType
         {
-            Standard,   // Normal territory
-            Capital,    // Faction starting point, high defense
-            Strategic,  // Provides combat bonuses
-            Resource    // High token generation
+            Standard,
+            Capital,
+            Strategic,
+            Resource
         }
         
         #endregion
     }
     
     /// <summary>
-    /// Represents the result of a battle
+    /// Represents the result of a battle at a node.
     /// </summary>
     [Serializable]
     public class BattleResult
     {
         public Team WinnerFaction;
         public Team LoserFaction;
-        public float ControlChange; // How much control percentage changes
+        public float ControlChange;
         public int TokensWon;
         public int TokensLost;
         public int PlayersParticipated;
-        public float BattleDuration; // In seconds
-        public Dictionary<string, int> PlayerScores; // Player contributions
+        public float BattleDuration;
+        public Dictionary<string, int> PlayerScores;
         
         public BattleResult()
         {

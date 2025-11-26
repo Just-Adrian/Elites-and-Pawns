@@ -50,7 +50,7 @@ namespace ElitesAndPawns.GameModes
         private Camera FindLocalPlayerCamera()
         {
             // Find all NetworkPlayers in the scene
-            Networking.NetworkPlayer[] networkPlayers = FindObjectsOfType<Networking.NetworkPlayer>();
+            Networking.NetworkPlayer[] networkPlayers = FindObjectsByType<Networking.NetworkPlayer>(FindObjectsSortMode.None);
             
             foreach (Networking.NetworkPlayer netPlayer in networkPlayers)
             {

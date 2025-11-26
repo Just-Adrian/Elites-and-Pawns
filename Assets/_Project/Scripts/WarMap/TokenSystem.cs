@@ -7,8 +7,9 @@ using ElitesAndPawns.Core;
 namespace ElitesAndPawns.WarMap
 {
     /// <summary>
-    /// Manages the token economy that bridges the RTS and FPS layers.
-    /// Tokens are the primary resource for both strategic and tactical gameplay.
+    /// Manages the faction token economy for the War Map system.
+    /// Tokens represent available manpower and are earned ONLY from holding nodes.
+    /// Tokens are spent to resupply player squads (1:1 ratio).
     /// </summary>
     public class TokenSystem : NetworkBehaviour
     {
@@ -31,22 +32,18 @@ namespace ElitesAndPawns.WarMap
         
         #region Fields
         
-        [Header("Token Configuration")]
-        [SerializeField] private int baseTokensPerCycle = 100;
-        [SerializeField] private float tokenCycleDuration = 60f; // Seconds between token generation
+        [Header("Token Generation")]
+        [Tooltip("Base tokens each faction gets per cycle regardless of territory")]
+        [SerializeField] private int baseTokensPerCycle = 50;
+        
+        [Tooltip("Seconds between token generation cycles")]
+        [SerializeField] private float tokenCycleDuration = 60f;
+        
+        [Tooltip("Maximum tokens a faction can stockpile")]
         [SerializeField] private int maxTokensPerFaction = 10000;
+        
+        [Tooltip("Tokens each faction starts with")]
         [SerializeField] private int startingTokens = 500;
-        
-        [Header("Battle Costs")]
-        [SerializeField] private int attackCost = 100; // Cost to initiate an attack
-        [SerializeField] private int reinforcementCost = 50; // Cost to send reinforcements
-        [SerializeField] private int fortifyCost = 75; // Cost to fortify a node
-        
-        [Header("FPS Rewards")]
-        [SerializeField] private int killReward = 10;
-        [SerializeField] private int captureReward = 25;
-        [SerializeField] private int winBonusReward = 100;
-        [SerializeField] private int participationReward = 20;
         
         [Header("Current State")]
         private Dictionary<Team, FactionTokenData> factionTokens = new Dictionary<Team, FactionTokenData>();
@@ -67,6 +64,9 @@ namespace ElitesAndPawns.WarMap
         
         #region Properties
         
+        /// <summary>
+        /// Get the current token count for a faction.
+        /// </summary>
         public int GetFactionTokens(Team faction)
         {
             if (factionTokens.ContainsKey(faction))
@@ -74,18 +74,44 @@ namespace ElitesAndPawns.WarMap
             return 0;
         }
         
+        /// <summary>
+        /// Check if a faction can afford a given cost.
+        /// </summary>
         public bool CanAfford(Team faction, int cost)
         {
             return GetFactionTokens(faction) >= cost;
         }
         
+        /// <summary>
+        /// Time in seconds until next token generation cycle.
+        /// </summary>
+        public float TimeToNextCycle => Mathf.Max(0f, nextCycleTime - Time.time);
+        
         #endregion
         
         #region Events
         
+        /// <summary>
+        /// Fired when a faction's token count changes.
+        /// Parameters: faction, newTotal
+        /// </summary>
         public static event Action<Team, int> OnTokensChanged;
+        
+        /// <summary>
+        /// Fired when tokens are spent.
+        /// Parameters: faction, amount, reason
+        /// </summary>
         public static event Action<Team, int, string> OnTokensSpent;
+        
+        /// <summary>
+        /// Fired when tokens are earned.
+        /// Parameters: faction, amount, reason
+        /// </summary>
         public static event Action<Team, int, string> OnTokensEarned;
+        
+        /// <summary>
+        /// Fired when a token generation cycle completes.
+        /// </summary>
         public static event Action OnTokenCycleCompleted;
         
         #endregion
@@ -142,7 +168,7 @@ namespace ElitesAndPawns.WarMap
             nextCycleTime = Time.time + tokenCycleDuration;
             isInitialized = true;
             
-            Debug.Log("[TokenSystem] Initialized with starting tokens: " + startingTokens);
+            Debug.Log($"[TokenSystem] Initialized with {startingTokens} starting tokens per faction");
         }
         
         #endregion
@@ -150,8 +176,11 @@ namespace ElitesAndPawns.WarMap
         #region Token Management
         
         /// <summary>
-        /// Add tokens to a faction
+        /// Add tokens to a faction.
         /// </summary>
+        /// <param name="faction">The faction to receive tokens</param>
+        /// <param name="amount">Amount of tokens to add</param>
+        /// <param name="reason">Reason for the addition (for logging/UI)</param>
         [Server]
         public void AddTokens(Team faction, int amount, string reason = "")
         {
@@ -161,8 +190,10 @@ namespace ElitesAndPawns.WarMap
             if (factionTokens.ContainsKey(faction))
             {
                 var data = factionTokens[faction];
+                int previousTokens = data.CurrentTokens;
                 data.CurrentTokens = Mathf.Min(data.CurrentTokens + amount, maxTokensPerFaction);
-                data.TotalEarned += amount;
+                int actualAdded = data.CurrentTokens - previousTokens;
+                data.TotalEarned += actualAdded;
                 
                 // Update synced values
                 UpdateSyncedTokens(faction, data.CurrentTokens);
@@ -170,22 +201,29 @@ namespace ElitesAndPawns.WarMap
                 // Log transaction
                 data.AddTransaction(new TokenTransaction
                 {
-                    Amount = amount,
+                    Amount = actualAdded,
                     Reason = reason,
                     Timestamp = Time.time,
                     IsIncome = true
                 });
                 
-                OnTokensEarned?.Invoke(faction, amount, reason);
+                OnTokensEarned?.Invoke(faction, actualAdded, reason);
                 OnTokensChanged?.Invoke(faction, data.CurrentTokens);
                 
-                Debug.Log($"[TokenSystem] {faction} earned {amount} tokens. Reason: {reason}. Total: {data.CurrentTokens}");
+                if (!string.IsNullOrEmpty(reason))
+                {
+                    Debug.Log($"[TokenSystem] {faction} +{actualAdded} tokens ({reason}). Total: {data.CurrentTokens}");
+                }
             }
         }
         
         /// <summary>
-        /// Spend tokens from a faction
+        /// Spend tokens from a faction.
         /// </summary>
+        /// <param name="faction">The faction spending tokens</param>
+        /// <param name="amount">Amount of tokens to spend</param>
+        /// <param name="reason">Reason for the expenditure (for logging/UI)</param>
+        /// <returns>True if successful, false if insufficient funds</returns>
         [Server]
         public bool SpendTokens(Team faction, int amount, string reason = "")
         {
@@ -219,7 +257,10 @@ namespace ElitesAndPawns.WarMap
                 OnTokensSpent?.Invoke(faction, amount, reason);
                 OnTokensChanged?.Invoke(faction, data.CurrentTokens);
                 
-                Debug.Log($"[TokenSystem] {faction} spent {amount} tokens. Reason: {reason}. Remaining: {data.CurrentTokens}");
+                if (!string.IsNullOrEmpty(reason))
+                {
+                    Debug.Log($"[TokenSystem] {faction} -{amount} tokens ({reason}). Remaining: {data.CurrentTokens}");
+                }
                 return true;
             }
             
@@ -227,7 +268,8 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Process a token generation cycle
+        /// Process a token generation cycle.
+        /// Tokens are generated based on controlled nodes (the "fort producing manpower" logic).
         /// </summary>
         [Server]
         private void ProcessTokenCycle()
@@ -235,13 +277,13 @@ namespace ElitesAndPawns.WarMap
             if (!isInitialized)
                 return;
                 
-            Debug.Log("[TokenSystem] Processing token generation cycle...");
+            Debug.Log("[TokenSystem] === Token Generation Cycle ===");
             
             // Get all war map nodes
             WarMapNode[] nodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
             
-            // Calculate token generation for each faction
-            Dictionary<Team, int> tokenGeneration = new Dictionary<Team, int>
+            // Calculate token generation for each faction based on held territory
+            Dictionary<Team, int> territoryGeneration = new Dictionary<Team, int>
             {
                 { Team.Blue, 0 },
                 { Team.Red, 0 },
@@ -250,20 +292,24 @@ namespace ElitesAndPawns.WarMap
             
             foreach (var node in nodes)
             {
-                if (node.ControllingFaction != Team.None && !node.IsContested)
+                // Only generate tokens from uncontested, controlled nodes
+                if (node.ControllingFaction != Team.None && !node.IsContested && !node.IsBattleActive)
                 {
                     int nodeTokens = node.CalculateTokenGeneration();
-                    tokenGeneration[node.ControllingFaction] += nodeTokens;
+                    territoryGeneration[node.ControllingFaction] += nodeTokens;
                 }
             }
             
-            // Add base token generation
-            foreach (var faction in tokenGeneration.Keys)
+            // Award tokens to each faction
+            foreach (var kvp in territoryGeneration)
             {
-                if (faction != Team.None)
+                Team faction = kvp.Key;
+                int territoryTokens = kvp.Value;
+                int totalGeneration = territoryTokens + baseTokensPerCycle;
+                
+                if (totalGeneration > 0)
                 {
-                    int totalGeneration = tokenGeneration[faction] + baseTokensPerCycle;
-                    AddTokens(faction, totalGeneration, "Cycle Generation");
+                    AddTokens(faction, totalGeneration, $"Production (+{baseTokensPerCycle} base, +{territoryTokens} territory)");
                 }
             }
             
@@ -271,7 +317,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Update the synced token values
+        /// Update the network-synced token values.
         /// </summary>
         [Server]
         private void UpdateSyncedTokens(Team faction, int newValue)
@@ -292,135 +338,61 @@ namespace ElitesAndPawns.WarMap
         
         #endregion
         
-        #region Battle Integration
+        #region Debug & Admin
         
         /// <summary>
-        /// Process tokens for starting a battle
+        /// Get transaction history for a faction.
         /// </summary>
-        [Server]
-        public bool InitiateBattle(Team attackingFaction, WarMapNode targetNode)
+        public List<TokenTransaction> GetTransactionHistory(Team faction)
         {
-            if (!SpendTokens(attackingFaction, attackCost, $"Attack on {targetNode.NodeName}"))
+            if (factionTokens.TryGetValue(faction, out var data))
             {
-                return false;
+                return new List<TokenTransaction>(data.TransactionHistory);
             }
-            
-            // Battle can proceed
-            targetNode.StartBattle(attackingFaction);
-            return true;
+            return new List<TokenTransaction>();
         }
         
         /// <summary>
-        /// Process battle rewards based on FPS match results
+        /// Get total tokens earned by a faction since war start.
         /// </summary>
-        [Server]
-        public void ProcessBattleRewards(BattleResult result)
+        public int GetTotalEarned(Team faction)
         {
-            // Winner gets bonus tokens
-            if (result.WinnerFaction != Team.None)
-            {
-                AddTokens(result.WinnerFaction, winBonusReward, "Battle Victory");
-                
-                // Add tokens based on control gained
-                int controlBonus = Mathf.RoundToInt(result.ControlChange * 2);
-                AddTokens(result.WinnerFaction, controlBonus, "Territory Control");
-            }
-            
-            // Process individual player contributions
-            foreach (var kvp in result.PlayerScores)
-            {
-                // In a real implementation, we'd track which faction each player belongs to
-                // For now, we'll assume this is handled elsewhere
-            }
+            if (factionTokens.TryGetValue(faction, out var data))
+                return data.TotalEarned;
+            return 0;
         }
         
         /// <summary>
-        /// Award tokens for FPS gameplay actions
+        /// Get total tokens spent by a faction since war start.
         /// </summary>
-        [Server]
-        public void AwardPlayerTokens(Team faction, string playerId, TokenRewardType rewardType)
+        public int GetTotalSpent(Team faction)
         {
-            int reward = 0;
-            string reason = "";
-            
-            switch (rewardType)
-            {
-                case TokenRewardType.Kill:
-                    reward = killReward;
-                    reason = "Enemy Elimination";
-                    break;
-                case TokenRewardType.Capture:
-                    reward = captureReward;
-                    reason = "Point Capture";
-                    break;
-                case TokenRewardType.Participation:
-                    reward = participationReward;
-                    reason = "Battle Participation";
-                    break;
-            }
-            
-            if (reward > 0)
-            {
-                AddTokens(faction, reward, reason);
-                
-                // Track individual player contributions (for future leaderboards)
-                if (factionTokens.ContainsKey(faction))
-                {
-                    factionTokens[faction].RecordPlayerContribution(playerId, reward);
-                }
-            }
-        }
-        
-        #endregion
-        
-        #region Strategic Actions
-        
-        /// <summary>
-        /// Fortify a node using tokens
-        /// </summary>
-        [Server]
-        public bool FortifyNode(Team faction, WarMapNode node)
-        {
-            if (node.ControllingFaction != faction)
-            {
-                Debug.LogWarning($"[TokenSystem] {faction} cannot fortify {node.NodeName} - not owned");
-                return false;
-            }
-            
-            if (!SpendTokens(faction, fortifyCost, $"Fortify {node.NodeName}"))
-            {
-                return false;
-            }
-            
-            // Increase control percentage
-            float currentControl = node.ControlPercentage;
-            node.SetControl(faction, Mathf.Min(100f, currentControl + 25f));
-            
-            return true;
+            if (factionTokens.TryGetValue(faction, out var data))
+                return data.TotalSpent;
+            return 0;
         }
         
         /// <summary>
-        /// Send reinforcements to an ongoing battle
+        /// Force a token cycle (for testing).
         /// </summary>
         [Server]
-        public bool SendReinforcements(Team faction, WarMapNode battleNode)
+        public void ForceTokenCycle()
         {
-            if (!battleNode.IsBattleActive)
+            ProcessTokenCycle();
+        }
+        
+        /// <summary>
+        /// Set tokens directly (for testing/admin).
+        /// </summary>
+        [Server]
+        public void SetTokens(Team faction, int amount)
+        {
+            if (factionTokens.ContainsKey(faction))
             {
-                Debug.LogWarning($"[TokenSystem] No active battle at {battleNode.NodeName}");
-                return false;
+                factionTokens[faction].CurrentTokens = Mathf.Clamp(amount, 0, maxTokensPerFaction);
+                UpdateSyncedTokens(faction, factionTokens[faction].CurrentTokens);
+                OnTokensChanged?.Invoke(faction, factionTokens[faction].CurrentTokens);
             }
-            
-            if (!SpendTokens(faction, reinforcementCost, $"Reinforce {battleNode.NodeName}"))
-            {
-                return false;
-            }
-            
-            // In a real implementation, this would affect the ongoing FPS battle
-            // For now, we'll just log it
-            Debug.Log($"[TokenSystem] {faction} sent reinforcements to {battleNode.NodeName}");
-            
-            return true;
         }
         
         #endregion
@@ -459,7 +431,7 @@ namespace ElitesAndPawns.WarMap
         #region Data Classes
         
         /// <summary>
-        /// Tracks token data for a faction
+        /// Tracks token data for a faction.
         /// </summary>
         [Serializable]
         private class FactionTokenData
@@ -469,7 +441,6 @@ namespace ElitesAndPawns.WarMap
             public int TotalEarned;
             public int TotalSpent;
             public List<TokenTransaction> TransactionHistory;
-            public Dictionary<string, int> PlayerContributions;
             
             public FactionTokenData(Team faction, int startingTokens)
             {
@@ -478,7 +449,6 @@ namespace ElitesAndPawns.WarMap
                 TotalEarned = startingTokens;
                 TotalSpent = 0;
                 TransactionHistory = new List<TokenTransaction>();
-                PlayerContributions = new Dictionary<string, int>();
             }
             
             public void AddTransaction(TokenTransaction transaction)
@@ -491,38 +461,18 @@ namespace ElitesAndPawns.WarMap
                     TransactionHistory.RemoveAt(0);
                 }
             }
-            
-            public void RecordPlayerContribution(string playerId, int amount)
-            {
-                if (!PlayerContributions.ContainsKey(playerId))
-                    PlayerContributions[playerId] = 0;
-                    
-                PlayerContributions[playerId] += amount;
-            }
         }
         
         /// <summary>
-        /// Represents a single token transaction
+        /// Represents a single token transaction for history tracking.
         /// </summary>
         [Serializable]
-        private struct TokenTransaction
+        public struct TokenTransaction
         {
             public int Amount;
             public string Reason;
             public float Timestamp;
             public bool IsIncome;
-        }
-        
-        /// <summary>
-        /// Types of token rewards in FPS gameplay
-        /// </summary>
-        public enum TokenRewardType
-        {
-            Kill,
-            Capture,
-            Participation,
-            Assist,
-            Objective
         }
         
         #endregion
