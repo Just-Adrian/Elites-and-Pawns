@@ -9,6 +9,49 @@ namespace ElitesAndPawns.WarMap
     /// Represents a single squad that a player controls on the war map.
     /// Squads contain manpower (tokens) that translate to spawn tickets in FPS battles.
     /// Each squad can be independently moved between connected nodes.
+    /// 
+    /// ============================================================================
+    /// FUTURE PROGRESSION INTEGRATION NOTES:
+    /// ============================================================================
+    /// 
+    /// To add squad types and progression-based customization:
+    /// 
+    /// 1. ADD SquadType enum (can be in this file or separate):
+    ///    public enum SquadType
+    ///    {
+    ///        Infantry,      // 8 max manpower, standard movement, balanced
+    ///        Mechanized,    // 6 max manpower, faster movement speed
+    ///        Armor,         // 4 max manpower, high battle impact, slow
+    ///        Specialist     // 3 max manpower, special abilities (recon, sabotage)
+    ///    }
+    /// 
+    /// 2. ADD new fields to this class:
+    ///    - SquadType Type
+    ///    - float MovementSpeedModifier (1.0 = normal, 1.5 = fast, 0.7 = slow)
+    ///    - float BattleEffectivenessModifier (impact per manpower in FPS)
+    ///    - List&lt;SquadUpgrade&gt; ActiveUpgrades
+    /// 
+    /// 3. ADD SquadUpgrade class/enum:
+    ///    - VeteranBonus: +10% effectiveness
+    ///    - ExtraSupplies: +2 max manpower
+    ///    - RapidDeployment: -20% travel time
+    ///    - Fortification: defensive bonus when stationary
+    /// 
+    /// 4. MODIFY constructor to accept SquadType:
+    ///    public Squad(..., SquadType type = SquadType.Infantry)
+    ///    - Set MaxManpower based on type
+    ///    - Set movement/effectiveness modifiers
+    /// 
+    /// 5. MODIFY ToSyncData()/FromSyncData():
+    ///    - Include SquadType in SquadSyncData struct
+    ///    - Sync upgrades if they affect gameplay
+    /// 
+    /// 6. IMPACT on FPS battles:
+    ///    - BattleManager should read squad types when calculating tickets
+    ///    - Different squad types could grant different loadouts/abilities
+    ///    - Armor squads might grant vehicle spawns
+    /// 
+    /// ============================================================================
     /// </summary>
     [Serializable]
     public class Squad
@@ -50,6 +93,11 @@ namespace ElitesAndPawns.WarMap
         /// Node ID where this squad is currently located (-1 if in transit).
         /// </summary>
         public int CurrentNodeId;
+        
+        /// <summary>
+        /// Node ID where this squad came from (for retreat purposes).
+        /// </summary>
+        public int PreviousNodeId;
         
         /// <summary>
         /// Node ID this squad is traveling to (-1 if stationary).
@@ -151,6 +199,7 @@ namespace ElitesAndPawns.WarMap
             Faction = faction;
             SquadIndex = squadIndex;
             CurrentNodeId = startingNodeId;
+            PreviousNodeId = startingNodeId; // Start with same as current (capital)
             DestinationNodeId = -1;
             MaxManpower = maxManpower;
             Manpower = 0; // Starts empty, must resupply from faction pool
@@ -170,6 +219,7 @@ namespace ElitesAndPawns.WarMap
             Faction = Team.None;
             SquadIndex = 0;
             CurrentNodeId = -1;
+            PreviousNodeId = -1;
             DestinationNodeId = -1;
             MaxManpower = 8;
             Manpower = 0;
@@ -207,6 +257,7 @@ namespace ElitesAndPawns.WarMap
             }
             
             int previousNode = CurrentNodeId;
+            PreviousNodeId = previousNode; // Track where we came from
             CurrentNodeId = DestinationNodeId;
             DestinationNodeId = -1;
             MovementState = SquadMovementState.Stationary;
@@ -305,6 +356,7 @@ namespace ElitesAndPawns.WarMap
                 Manpower = this.Manpower,
                 MaxManpower = this.MaxManpower,
                 CurrentNodeId = this.CurrentNodeId,
+                PreviousNodeId = this.PreviousNodeId,
                 DestinationNodeId = this.DestinationNodeId,
                 MovementState = (int)this.MovementState,
                 MovementStartTime = this.MovementStartTime,
@@ -327,6 +379,7 @@ namespace ElitesAndPawns.WarMap
                 Manpower = data.Manpower,
                 MaxManpower = data.MaxManpower,
                 CurrentNodeId = data.CurrentNodeId,
+                PreviousNodeId = data.PreviousNodeId,
                 DestinationNodeId = data.DestinationNodeId,
                 MovementState = (SquadMovementState)data.MovementState,
                 MovementStartTime = data.MovementStartTime,
@@ -374,6 +427,7 @@ namespace ElitesAndPawns.WarMap
         public int Manpower;
         public int MaxManpower;
         public int CurrentNodeId;
+        public int PreviousNodeId;
         public int DestinationNodeId;
         public int MovementState;
         public float MovementStartTime;

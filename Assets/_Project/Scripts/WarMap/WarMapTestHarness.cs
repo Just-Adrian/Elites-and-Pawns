@@ -35,6 +35,13 @@ namespace ElitesAndPawns.WarMap
         [Tooltip("Assign the NetworkPlayer prefab from Assets/_Project/Prefabs/WarMap")]
         [SerializeField] private GameObject testPlayerPrefab;
         
+        [Tooltip("Assign the WarMapNode prefab from Assets/_Project/Prefabs/WarMap")]
+        [SerializeField] private GameObject warMapNodePrefab;
+        
+        [Header("Interactive Mode")]
+        [SerializeField] private bool useInteractiveUI = true;
+        [SerializeField] private bool autoCreateCamera = true;
+        
         // References to pre-placed managers (found at runtime)
         private WarMapManager warMapManager;
         private TokenSystem tokenSystem;
@@ -62,6 +69,37 @@ namespace ElitesAndPawns.WarMap
         
         #region Initialization
         
+        /// <summary>
+        /// Determines if this instance should run as a client.
+        /// </summary>
+        private bool ShouldRunAsClient()
+        {
+            // Check command line for explicit flags
+            string[] args = System.Environment.GetCommandLineArgs();
+            foreach (string arg in args)
+            {
+                if (arg.ToLower() == "-client")
+                {
+                    Debug.Log("[WarMapTest] -client flag detected");
+                    return true;
+                }
+                if (arg.ToLower() == "-host" || arg.ToLower() == "-server")
+                {
+                    Debug.Log("[WarMapTest] -host/-server flag detected");
+                    return false;
+                }
+            }
+            
+            #if UNITY_EDITOR
+            // In editor: default to host
+            return false;
+            #else
+            // In builds: default to CLIENT (assumes server is running)
+            Debug.Log("[WarMapTest] Build detected - defaulting to CLIENT mode");
+            return true;
+            #endif
+        }
+        
         void Start()
         {
             if (autoInitialize)
@@ -82,11 +120,46 @@ namespace ElitesAndPawns.WarMap
                 yield break;
             }
             
-            // Start host if not already running
+            // Check if we should be a client or server
+            bool shouldBeClient = ShouldRunAsClient();
+            bool isHeadless = Application.isBatchMode;
+            
+            // Start appropriate network mode
             if (!NetworkServer.active && !NetworkClient.active)
             {
-                Debug.Log("[WarMapTest] Starting host...");
-                networkManager.StartHost();
+                if (isHeadless)
+                {
+                    // Headless = dedicated server
+                    Debug.Log("[WarMapTest] Starting as DEDICATED SERVER...");
+                    networkManager.StartServer();
+                }
+                else if (shouldBeClient)
+                {
+                    // Client mode - connect to server
+                    Debug.Log($"[WarMapTest] Starting as CLIENT, connecting to {networkManager.networkAddress}...");
+                    networkManager.StartClient();
+                    
+                    // Wait for connection
+                    float timeout = 5f;
+                    while (!NetworkClient.isConnected && timeout > 0)
+                    {
+                        yield return new WaitForSeconds(0.1f);
+                        timeout -= 0.1f;
+                    }
+                    
+                    if (!NetworkClient.isConnected)
+                    {
+                        Debug.LogError("[WarMapTest] Failed to connect to server!");
+                        yield break;
+                    }
+                    Debug.Log("[WarMapTest] Connected to server!");
+                }
+                else
+                {
+                    // Default: start as host (for editor testing)
+                    Debug.Log("[WarMapTest] Starting as HOST...");
+                    networkManager.StartHost();
+                }
                 yield return new WaitForSeconds(0.3f);
             }
             
@@ -105,37 +178,123 @@ namespace ElitesAndPawns.WarMap
             // Wait for network objects to spawn
             yield return new WaitForSeconds(0.2f);
             
-            // Create test nodes if needed
-            if (createTestNodes)
-            {
-                CreateTestNodes();
-                yield return null;
-                
-                // Register nodes with manager
-                if (warMapManager != null && NetworkServer.active)
-                {
-                    warMapManager.RegisterExistingNodes();
-                    Debug.Log($"[WarMapTest] Registered {warMapManager.Nodes.Count} nodes");
-                }
-                
-                // Reinitialize NodeOccupancy now that nodes exist
-                if (nodeOccupancy != null && NetworkServer.active)
-                {
-                    nodeOccupancy.ReinitializeForNodes();
-                }
-            }
-            
-            yield return new WaitForSeconds(0.2f);
-            
-            // Create test squad managers for Blue and Red
+            // SERVER ONLY: Create test nodes and squads
             if (NetworkServer.active)
             {
+                // Create test nodes if needed
+                if (createTestNodes)
+                {
+                    CreateTestNodes();
+                    yield return null;
+                    
+                    // Register nodes with manager
+                    if (warMapManager != null)
+                    {
+                        warMapManager.RegisterExistingNodes();
+                        Debug.Log($"[WarMapTest] Registered {warMapManager.Nodes.Count} nodes");
+                    }
+                    
+                    // Reinitialize NodeOccupancy now that nodes exist
+                    if (nodeOccupancy != null)
+                    {
+                        nodeOccupancy.ReinitializeForNodes();
+                    }
+                }
+                
+                yield return new WaitForSeconds(0.2f);
+                
+                // Create test squad managers for Blue and Red
                 CreateTestSquadManager(Team.Blue, "BlueCommander", 0);
                 CreateTestSquadManager(Team.Red, "RedCommander", 4);
             }
+            else
+            {
+                // CLIENT: Wait for server to spawn networked objects
+                Debug.Log("[WarMapTest] Client waiting for server objects...");
+                yield return new WaitForSeconds(1.0f);
+                
+                // Try to find nodes spawned by server
+                var nodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
+                Debug.Log($"[WarMapTest] Client found {nodes.Length} nodes");
+                
+                // Refresh node connections on client side
+                foreach (var node in nodes)
+                {
+                    node.RefreshConnections();
+                }
+                
+                // Create visual connection lines on client
+                if (nodes.Length > 0)
+                {
+                    CreateConnectionLines();
+                }
+            }
             
             isInitialized = true;
+            
+            // Setup interactive mode
+            if (useInteractiveUI)
+            {
+                SetupInteractiveMode();
+            }
+            
             Debug.Log("[WarMapTest] ✓ Test system ready!");
+        }
+        
+        void SetupInteractiveMode()
+        {
+            // Create war map camera if needed (both client and server)
+            if (autoCreateCamera && WarMapCamera.Instance == null)
+            {
+                GameObject camGO = new GameObject("WarMapCamera");
+                var warMapCam = camGO.AddComponent<WarMapCamera>();
+                Debug.Log("[WarMapTest] Created WarMapCamera");
+            }
+            
+            // Disable main camera if it exists (to avoid duplicate cameras)
+            var mainCam = Camera.main;
+            if (mainCam != null && mainCam.GetComponent<WarMapCamera>() == null)
+            {
+                mainCam.gameObject.SetActive(false);
+                Debug.Log("[WarMapTest] Disabled existing main camera");
+            }
+            
+            // Create war map UI (both client and server)
+            if (FindAnyObjectByType<WarMapUI>() == null)
+            {
+                GameObject uiGO = new GameObject("WarMapUI");
+                uiGO.AddComponent<WarMapUI>();
+                Debug.Log("[WarMapTest] Created WarMapUI");
+            }
+            
+            // SERVER ONLY: Create networked BattleSceneBridge
+            if (NetworkServer.active && FindAnyObjectByType<BattleSceneBridge>() == null)
+            {
+                GameObject bridgeGO = new GameObject("BattleSceneBridge");
+                bridgeGO.AddComponent<BattleSceneBridge>();
+                bridgeGO.AddComponent<NetworkIdentity>();
+                NetworkServer.Spawn(bridgeGO);
+                Debug.Log("[WarMapTest] Created BattleSceneBridge");
+            }
+            
+            // Create BattleUI (both client and server)
+            if (FindAnyObjectByType<BattleUI>() == null)
+            {
+                GameObject battleUIGO = new GameObject("BattleUI");
+                battleUIGO.AddComponent<BattleUI>();
+                Debug.Log("[WarMapTest] Created BattleUI");
+            }
+            
+            // Create FPSLauncher for launching FPS client (both client and server)
+            if (FindAnyObjectByType<FPSLauncher>() == null)
+            {
+                GameObject launcherGO = new GameObject("FPSLauncher");
+                launcherGO.AddComponent<FPSLauncher>();
+                Debug.Log("[WarMapTest] Created FPSLauncher");
+            }
+            
+            // Disable the old debug GUI when using interactive mode
+            showDebugGUI = false;
         }
         
         void CreateTestSquadManager(Team faction, string displayName, int startNodeId)
@@ -214,14 +373,22 @@ namespace ElitesAndPawns.WarMap
                 return;
             }
             
+            // Check if prefab is assigned
+            if (warMapNodePrefab == null)
+            {
+                Debug.LogError("[WarMapTest] WarMapNode prefab not assigned! Use Tools → Elites and Pawns → Create WarMapNode Prefab, then assign it to WarMapTestHarness.");
+                return;
+            }
+            
             Debug.Log("[WarMapTest] Creating test nodes...");
             
+            // Positions spread out for top-down view
             Vector3[] positions = {
-                new Vector3(-5, 0, 0),   // 0: Blue Capital
-                new Vector3(-2, 0, 3),   // 1: Northern
+                new Vector3(-8, 0, 0),   // 0: Blue Capital
+                new Vector3(-3, 0, 5),   // 1: Northern
                 new Vector3(0, 0, 0),    // 2: Center
-                new Vector3(-2, 0, -3),  // 3: Southern
-                new Vector3(5, 0, 0)     // 4: Red Capital
+                new Vector3(-3, 0, -5),  // 3: Southern
+                new Vector3(8, 0, 0)     // 4: Red Capital
             };
             
             string[] names = { "Blue Capital", "Northern Outpost", "Central Hub", "Southern Fort", "Red Capital" };
@@ -245,14 +412,23 @@ namespace ElitesAndPawns.WarMap
             
             for (int i = 0; i < 5; i++)
             {
-                GameObject nodeGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                // Instantiate from prefab (this is what Mirror can replicate!)
+                GameObject nodeGO = Instantiate(warMapNodePrefab);
                 nodeGO.name = $"Node_{i}_{names[i]}";
                 nodeGO.transform.position = positions[i];
-                nodeGO.transform.localScale = Vector3.one * 0.8f;
                 
-                var node = nodeGO.AddComponent<WarMapNode>();
-                nodeGO.AddComponent<NetworkIdentity>();
+                var node = nodeGO.GetComponent<WarMapNode>();
+                if (node == null)
+                {
+                    Debug.LogError($"[WarMapTest] Prefab missing WarMapNode component!");
+                    Destroy(nodeGO);
+                    continue;
+                }
                 
+                // Spawn on network BEFORE initializing (so SyncVars work)
+                NetworkServer.Spawn(nodeGO);
+                
+                // Now initialize (this will sync via SyncVars)
                 node.Initialize(i, names[i], types[i], connections[i]);
                 
                 // Set initial control
@@ -262,11 +438,91 @@ namespace ElitesAndPawns.WarMap
                     node.SetControl(Team.Red, 100f);
                 else
                     node.SetControl(Team.None, 0f);
-                
-                NetworkServer.Spawn(nodeGO);
             }
             
+            // Create visual connection lines
+            CreateConnectionLines();
+            
             Debug.Log("[WarMapTest] Created 5 test nodes");
+        }
+        
+        void CreateConnectionLines()
+        {
+            // Skip visual creation on headless servers (no shaders available)
+            if (Application.isBatchMode)
+            {
+                Debug.Log("[WarMapTest] Skipping connection lines on headless server");
+                return;
+            }
+            
+            // Create a parent for all lines (or find existing)
+            GameObject lineParent = GameObject.Find("ConnectionLines");
+            if (lineParent != null)
+            {
+                // Already created, skip
+                return;
+            }
+            lineParent = new GameObject("ConnectionLines");
+            
+            var nodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
+            HashSet<string> drawnConnections = new HashSet<string>();
+            
+            foreach (var node in nodes)
+            {
+                foreach (int connectedId in node.ConnectedNodeIDs)
+                {
+                    // Create unique key for this connection
+                    int minId = Mathf.Min(node.NodeID, connectedId);
+                    int maxId = Mathf.Max(node.NodeID, connectedId);
+                    string key = $"{minId}-{maxId}";
+                    
+                    if (drawnConnections.Contains(key)) continue;
+                    drawnConnections.Add(key);
+                    
+                    // Find connected node
+                    WarMapNode connectedNode = null;
+                    foreach (var n in nodes)
+                    {
+                        if (n.NodeID == connectedId)
+                        {
+                            connectedNode = n;
+                            break;
+                        }
+                    }
+                    
+                    if (connectedNode == null) continue;
+                    
+                    // Create line
+                    GameObject lineGO = new GameObject($"Line_{key}");
+                    lineGO.transform.parent = lineParent.transform;
+                    
+                    LineRenderer line = lineGO.AddComponent<LineRenderer>();
+                    line.positionCount = 2;
+                    line.SetPosition(0, node.transform.position);
+                    line.SetPosition(1, connectedNode.transform.position);
+                    line.startWidth = 0.1f;
+                    line.endWidth = 0.1f;
+                    
+                    // Safely create material (shader might not exist in some builds)
+                    var shader = Shader.Find("Sprites/Default");
+                    if (shader != null)
+                    {
+                        line.material = new Material(shader);
+                        line.startColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                        line.endColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                    }
+                    else
+                    {
+                        // Fallback - use Unity's built-in line material
+                        line.material = new Material(Shader.Find("Hidden/Internal-Colored"));
+                        if (line.material != null)
+                        {
+                            line.startColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                            line.endColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                        }
+                    }
+                }
+            }
         }
         
         #endregion

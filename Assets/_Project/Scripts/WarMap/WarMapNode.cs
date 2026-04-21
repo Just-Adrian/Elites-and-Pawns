@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Mirror;
 using ElitesAndPawns.Core;
 
 namespace ElitesAndPawns.WarMap
@@ -11,26 +12,33 @@ namespace ElitesAndPawns.WarMap
     /// Each node can be captured and controlled by a faction.
     /// </summary>
     [Serializable]
-    public class WarMapNode : MonoBehaviour
+    public class WarMapNode : NetworkBehaviour
     {
         #region Fields
         
         [Header("Node Configuration")]
-        [SerializeField] private int nodeID;
-        [SerializeField] private string nodeName = "Territory";
-        [SerializeField] private NodeType nodeType = NodeType.Standard;
-        [SerializeField] private int baseTokenGeneration = 10;
+        [SyncVar] [SerializeField] private int nodeID;
+        [SyncVar] [SerializeField] private string nodeName = "Territory";
+        [SyncVar] [SerializeField] private NodeType nodeType = NodeType.Standard;
+        [SyncVar] [SerializeField] private int baseTokenGeneration = 10;
         
         [Header("Current State")]
+        [SyncVar(hook = nameof(OnControllingFactionChanged))]
         [SerializeField] private Team controllingFaction = Team.None;
+        
+        [SyncVar(hook = nameof(OnControlPercentageChanged))]
         [SerializeField] private float controlPercentage = 0f;
+        
+        [SyncVar(hook = nameof(OnContestedChanged))]
         [SerializeField] private bool isContested = false;
+        
+        [SyncVar(hook = nameof(OnBattleActiveChanged))]
         [SerializeField] private bool isBattleActive = false;
         
         [Header("Strategic Value")]
-        [SerializeField] private int attackBonus = 0;
-        [SerializeField] private int defenseBonus = 0;
-        [SerializeField] private float tokenMultiplier = 1f;
+        [SyncVar] [SerializeField] private int attackBonus = 0;
+        [SyncVar] [SerializeField] private int defenseBonus = 0;
+        [SyncVar] [SerializeField] private float tokenMultiplier = 1f;
         
         [Header("Connected Nodes")]
         [SerializeField] private List<int> connectedNodeIDs = new List<int>();
@@ -186,6 +194,30 @@ namespace ElitesAndPawns.WarMap
         
         #endregion
         
+        #region SyncVar Hooks
+        
+        private void OnControllingFactionChanged(Team oldValue, Team newValue)
+        {
+            UpdateVisuals();
+        }
+        
+        private void OnControlPercentageChanged(float oldValue, float newValue)
+        {
+            UpdateVisuals();
+        }
+        
+        private void OnContestedChanged(bool oldValue, bool newValue)
+        {
+            UpdateVisuals();
+        }
+        
+        private void OnBattleActiveChanged(bool oldValue, bool newValue)
+        {
+            UpdateVisuals();
+        }
+        
+        #endregion
+        
         #region Public Methods
         
         /// <summary>
@@ -265,6 +297,15 @@ namespace ElitesAndPawns.WarMap
                 OnNodeContested?.Invoke(this, attackingFaction);
             }
             
+            UpdateVisuals();
+        }
+        
+        /// <summary>
+        /// Set whether a battle is active at this node.
+        /// </summary>
+        public void SetBattleActive(bool active)
+        {
+            isBattleActive = active;
             UpdateVisuals();
         }
         

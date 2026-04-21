@@ -103,6 +103,56 @@ namespace ElitesAndPawns.WarMap
             if (isServer)
             {
                 InitializeWarMap();
+                
+                // Subscribe to battle server events to relay to clients
+                DedicatedServerLauncher.OnBattleServerReady += OnBattleServerReady;
+                DedicatedServerLauncher.OnBattleServerStopped += OnBattleServerStopped;
+            }
+        }
+        
+        void OnDestroy()
+        {
+            // Unsubscribe from events
+            DedicatedServerLauncher.OnBattleServerReady -= OnBattleServerReady;
+            DedicatedServerLauncher.OnBattleServerStopped -= OnBattleServerStopped;
+            
+            if (_instance == this)
+                _instance = null;
+        }
+        
+        /// <summary>
+        /// Called when DedicatedServerLauncher has an FPS server ready.
+        /// Relays the notification to all clients.
+        /// </summary>
+        [Server]
+        private void OnBattleServerReady(int nodeId, string address, ushort port)
+        {
+            Debug.Log($"[WarMapManager] FPS server ready for node {nodeId} at {address}:{port}");
+            RpcNotifyBattleServerReady(nodeId, address, port);
+        }
+        
+        /// <summary>
+        /// Called when a battle server stops.
+        /// </summary>
+        [Server]
+        private void OnBattleServerStopped(int nodeId)
+        {
+            Debug.Log($"[WarMapManager] FPS server stopped for node {nodeId}");
+            // Already handled in EndBattle
+        }
+        
+        /// <summary>
+        /// Notify clients that an FPS battle server is ready for connections.
+        /// </summary>
+        [ClientRpc]
+        private void RpcNotifyBattleServerReady(int nodeId, string address, ushort port)
+        {
+            Debug.Log($"[WarMapManager-Client] Battle server ready for node {nodeId} at {address}:{port}");
+            
+            // Notify ClientBattleRedirector directly
+            if (ClientBattleRedirector.Instance != null)
+            {
+                ClientBattleRedirector.Instance.OnBattleServerReadyNotification(nodeId, address, port);
             }
         }
         
@@ -264,7 +314,8 @@ namespace ElitesAndPawns.WarMap
             // Only create nodes if they don't already exist
             if (warMapNodePrefab == null)
             {
-                Debug.LogWarning("[WarMapManager] No node prefab assigned and no existing nodes found. Cannot create nodes.");
+                // This is normal during startup - the test harness will create nodes
+                Debug.Log("[WarMapManager] No node prefab assigned. Waiting for nodes to be created externally (e.g., by test harness).");
                 return;
             }
             
@@ -419,7 +470,8 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
-        /// Start a battle at a node
+        /// Start a battle at a node.
+        /// This spawns an FPS battle server via DedicatedServerLauncher.
         /// </summary>
         [Server]
         private void StartBattle(WarMapNode node, Team attackingFaction)
@@ -450,15 +502,60 @@ namespace ElitesAndPawns.WarMap
             OnBattleStarted?.Invoke(battleSession);
             OnBattleRequested?.Invoke(node, attackingFaction);
             
-            Debug.Log($"[WarMapManager] Battle started at {node.NodeName}: {attackingFaction} vs {node.ControllingFaction} ({activeBattles.Count} active battles)");
+            Debug.Log($"[WarMapManager] Battle starting at {node.NodeName}: {attackingFaction} vs {node.ControllingFaction}");
             
-            // In a full implementation, this would trigger loading the FPS battle scene
-            // For now, we'll simulate it
+            // Get spawn tickets from squads at this node
+            int attackerTickets = 100; // Default
+            int defenderTickets = 100; // Default
+            
+            if (NodeOccupancy.Instance != null)
+            {
+                attackerTickets = NodeOccupancy.Instance.GetFactionManpowerAtNode(node.NodeID, attackingFaction);
+                defenderTickets = NodeOccupancy.Instance.GetFactionManpowerAtNode(node.NodeID, node.ControllingFaction);
+            }
+            
+            // Create battle parameters for FPS server
+            var battleParams = new BattleParameters
+            {
+                BattleId = $"battle_{node.NodeID}_{Time.time:F0}",
+                NodeId = node.NodeID,
+                NodeName = node.NodeName,
+                AttackingFaction = attackingFaction,
+                DefendingFaction = node.ControllingFaction,
+                AttackerSpawnTickets = attackerTickets,
+                DefenderSpawnTickets = defenderTickets,
+                TimeLimit = battleTimeout,
+                BattleSceneName = battleSceneName
+            };
+            
+            // Spawn FPS battle server via DedicatedServerLauncher
+            if (Networking.DedicatedServerLauncher.Instance != null)
+            {
+                bool success = Networking.DedicatedServerLauncher.Instance.StartBattleServer(battleParams);
+                if (success)
+                {
+                    Debug.Log($"[WarMapManager] FPS battle server spawning for node {node.NodeID}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[WarMapManager] Failed to spawn FPS server for node {node.NodeID}");
+                    // Clean up failed battle
+                    activeBattles.Remove(node.NodeID);
+                    node.EndBattle(new BattleResult { WinnerFaction = Team.None });
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[WarMapManager] DedicatedServerLauncher not found - using simulation mode");
+            }
+            
+            // Notify clients about the battle
             RpcNotifyBattleStart(node.NodeID, attackingFaction);
         }
         
         /// <summary>
-        /// End a battle with results
+        /// End a battle with results.
+        /// Stops the FPS server and applies results to the war map.
         /// </summary>
         [Server]
         public void EndBattle(int nodeID, BattleResult result)
@@ -481,6 +578,12 @@ namespace ElitesAndPawns.WarMap
                 // Tokens only come from holding territory (production cycles).
             }
             
+            // Stop the FPS battle server
+            if (Networking.DedicatedServerLauncher.Instance != null)
+            {
+                Networking.DedicatedServerLauncher.Instance.StopBattleServer(nodeID);
+            }
+            
             // Complete the battle session
             battleSession.IsActive = false;
             battleSession.EndTime = Time.time;
@@ -498,6 +601,18 @@ namespace ElitesAndPawns.WarMap
             }
             
             Debug.Log($"[WarMapManager] Battle ended at node {nodeID}. Winner: {result.WinnerFaction} ({activeBattles.Count} battles remaining)");
+            
+            // Notify clients that battle ended
+            RpcNotifyBattleEnded(nodeID, result.WinnerFaction);
+        }
+        
+        /// <summary>
+        /// Notify clients that a battle has ended.
+        /// </summary>
+        [ClientRpc]
+        private void RpcNotifyBattleEnded(int nodeID, Team winner)
+        {
+            Debug.Log($"[WarMapManager-Client] Battle ended at node {nodeID}, winner: {winner}");
         }
         
         /// <summary>

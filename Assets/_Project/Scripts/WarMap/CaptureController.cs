@@ -454,9 +454,11 @@ namespace ElitesAndPawns.WarMap
             int retreatNodeId = FindNearestAlliedNode(nodeId, retreatingFaction);
             if (retreatNodeId == -1)
             {
-                Debug.LogWarning($"[CaptureController] No retreat destination for {retreatingFaction} from node {nodeId}!");
+                Debug.LogWarning($"[CaptureController] No retreat destination for {retreatingFaction} from node {nodeId}! Squads stranded.");
                 return;
             }
+            
+            Debug.Log($"[CaptureController] Retreating {retreatingFaction} squads from node {nodeId} to node {retreatNodeId}");
             
             // Get all squad managers and retreat their squads
             var squadsAtNode = NodeOccupancy.Instance.GetSquadsAtNode(nodeId);
@@ -477,7 +479,8 @@ namespace ElitesAndPawns.WarMap
                             var squad = manager.GetSquad(i);
                             if (squad != null && squad.SquadId == squadPresence.SquadId)
                             {
-                                manager.ServerMoveSquad(i, retreatNodeId);
+                                // Use force retreat (ignores normal restrictions)
+                                manager.ServerForceRetreat(i, retreatNodeId);
                                 Debug.Log($"[CaptureController] Retreating {squadPresence.SquadId} to node {retreatNodeId}");
                                 break;
                             }
@@ -590,19 +593,104 @@ namespace ElitesAndPawns.WarMap
         [Server]
         private void PrepareFPSBattle(int nodeId, Team attacker, Team defender)
         {
-            // This integrates with WarMapManager's battle system
-            if (WarMapManager.Instance != null)
+            // Check if BattleSceneBridge exists
+            if (BattleSceneBridge.Instance == null)
             {
-                // The battle will be initiated when players choose to engage
-                // For now, mark the node as battle-ready
-                
-                var node = WarMapManager.Instance.GetNodeByID(nodeId);
-                if (node != null && !node.IsBattleActive)
+                Debug.LogWarning($"[CaptureController] BattleSceneBridge not found - cannot start FPS battle");
+                return;
+            }
+            
+            // Check if battle already active for this node
+            if (BattleSceneBridge.Instance.IsBattleActive(nodeId))
+            {
+                Debug.Log($"[CaptureController] Battle already active at node {nodeId}");
+                return;
+            }
+            
+            // Create battle parameters
+            var parameters = BattleParameters.FromContestedNode(nodeId, attacker, defender);
+            
+            // Start the battle scene
+            BattleSceneBridge.Instance.StartBattle(parameters);
+            
+            Debug.Log($"[CaptureController] Started FPS battle at node {nodeId}: {attacker} vs {defender}");
+        }
+        
+        /// <summary>
+        /// Called by BattleManager when a battle starts.
+        /// </summary>
+        [Server]
+        public void OnBattleStarted(int nodeId)
+        {
+            if (activeCaptureAttempts.TryGetValue(nodeId, out var attempt))
+            {
+                attempt.State = CaptureState.BattleInProgress;
+                Debug.Log($"[CaptureController] Battle started at node {nodeId}");
+            }
+            
+            // Mark node as battle active
+            var node = WarMapManager.Instance?.GetNodeByID(nodeId);
+            if (node != null)
+            {
+                node.SetBattleActive(true);
+            }
+        }
+        
+        /// <summary>
+        /// Called by BattleManager when a battle ends.
+        /// </summary>
+        [Server]
+        public void OnBattleEnded(int nodeId, Team winner)
+        {
+            Debug.Log($"[CaptureController] Battle ended at node {nodeId}. Winner: {winner}");
+            
+            // Mark node as battle ended
+            var node = WarMapManager.Instance?.GetNodeByID(nodeId);
+            if (node != null)
+            {
+                node.SetBattleActive(false);
+                node.SetContested(false);
+            }
+            
+            // Handle winner
+            if (activeCaptureAttempts.TryGetValue(nodeId, out var attempt))
+            {
+                if (winner == attempt.AttackingFaction)
                 {
-                    // Don't auto-start battle, let players initiate
-                    // Or we could auto-start after a grace period
-                    Debug.Log($"[CaptureController] Node {nodeId} ready for FPS battle: {attacker} vs {defender}");
+                    // Attacker won - capture the node instantly
+                    CompleteCapture(nodeId, winner);
                 }
+                else if (winner == attempt.DefendingFaction)
+                {
+                    // Defender won - cancel capture attempt
+                    CancelCapture(nodeId);
+                    
+                    // Retreat any remaining attacker squads
+                    RetreatSquadsFromNode(nodeId, attempt.AttackingFaction);
+                }
+                else
+                {
+                    // Draw or no winner - cancel capture, everyone retreats
+                    CancelCapture(nodeId);
+                    RetreatSquadsFromNode(nodeId, attempt.AttackingFaction);
+                }
+            }
+            
+            // Unload battle scene after a delay
+            if (BattleSceneBridge.Instance != null)
+            {
+                // Give players time to see the result
+                StartCoroutine(UnloadBattleAfterDelay(nodeId, 5f));
+            }
+        }
+        
+        private System.Collections.IEnumerator UnloadBattleAfterDelay(int nodeId, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            
+            if (BattleSceneBridge.Instance != null)
+            {
+                BattleSceneBridge.Instance.EndBattle(nodeId);
             }
         }
         

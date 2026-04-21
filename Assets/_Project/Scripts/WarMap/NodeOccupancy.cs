@@ -52,6 +52,11 @@ namespace ElitesAndPawns.WarMap
         /// </summary>
         private List<PlayerSquadManager> activeSquadManagers = new List<PlayerSquadManager>();
         
+        /// <summary>
+        /// Flag to avoid spamming warning about no managers.
+        /// </summary>
+        private bool hasWarnedNoManagers = false;
+        
         #endregion
         
         #region Events
@@ -420,9 +425,14 @@ namespace ElitesAndPawns.WarMap
             }
             
             // Debug: Check if we have any managers
-            if (activeSquadManagers.Count == 0 && Time.frameCount % 120 == 0)
+            if (activeSquadManagers.Count == 0 && !hasWarnedNoManagers)
             {
-                Debug.LogWarning("[NodeOccupancy] No active squad managers registered!");
+                Debug.Log("[NodeOccupancy] No active squad managers registered yet (waiting for initialization)");
+                hasWarnedNoManagers = true;
+            }
+            else if (activeSquadManagers.Count > 0)
+            {
+                hasWarnedNoManagers = false; // Reset if managers appear
             }
             
             // Aggregate from all managers
@@ -460,9 +470,9 @@ namespace ElitesAndPawns.WarMap
                         {
                             nodeData.PresentSquads.Add(presence);
                         }
-                        else if (Time.frameCount % 120 == 0)
+                        else
                         {
-                            Debug.LogWarning($"[NodeOccupancy] No tracking for node {squad.CurrentNodeId}! Squad {squad.SquadId} not counted.");
+                            // Node not tracked yet - silently skip (expected during startup)
                         }
                     }
                 }

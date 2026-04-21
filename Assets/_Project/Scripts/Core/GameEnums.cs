@@ -3,20 +3,10 @@ using System;
 namespace ElitesAndPawns.Core
 {
     /// <summary>
-    /// The three playable factions in the game
+    /// The three playable factions in the game.
+    /// Used across both the FPS and RTS layers.
     /// </summary>
     public enum FactionType
-    {
-        None = 0,
-        Blue = 1,   // The Architects - Tactical, deployables, team-focused
-        Red = 2,    // The Destroyers - Heavy damage, environmental destruction
-        Green = 3   // The Hunters - Mobile, long-range, fragile
-    }
-
-    /// <summary>
-    /// Alias for FactionType to support different naming conventions
-    /// </summary>
-    public enum Team
     {
         None = 0,
         Blue = 1,   // The Architects - Tactical, deployables, team-focused
@@ -35,17 +25,6 @@ namespace ElitesAndPawns.Core
         InBattle,        // FPS layer
         PostBattle,      // Results screen
         Paused
-    }
-
-    /// <summary>
-    /// Types of nodes on the war map
-    /// </summary>
-    public enum NodeType
-    {
-        MajorCity,      // Victory condition nodes
-        ResourcePoint,  // Generate tokens
-        StrategicPoint, // Tactical bonuses
-        SupplyHub       // Enable reinforcement
     }
 
     /// <summary>

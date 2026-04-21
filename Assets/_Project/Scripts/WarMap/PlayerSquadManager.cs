@@ -10,6 +10,44 @@ namespace ElitesAndPawns.WarMap
     /// Manages the squads owned by a single player.
     /// Each player can control up to MaxSquadsPerPlayer squads independently.
     /// Attached to the player's NetworkPlayer object.
+    /// 
+    /// ============================================================================
+    /// FUTURE PROGRESSION INTEGRATION NOTES:
+    /// ============================================================================
+    /// 
+    /// To add player progression with unlockable squad slots and types:
+    /// 
+    /// 1. CREATE PlayerProfile class (new file: PlayerProfile.cs)
+    ///    - PlayerId (string) - unique player identifier
+    ///    - UnlockedSquadSlots (int) - 1-5 based on player level
+    ///    - SquadLoadouts (List&lt;SquadLoadout&gt;) - configured squad types
+    ///    - See ElitesAndPawns.Progression namespace (to be created)
+    /// 
+    /// 2. CREATE SquadLoadout class
+    ///    - SquadType (enum: Infantry, Mechanized, Armor, Specialist)
+    ///    - MaxManpower (varies by type: Infantry=8, Mech=6, Armor=4, Spec=3)
+    ///    - Upgrades (List&lt;string&gt;) - "VeteranBonus", "ExtraSupplies", etc.
+    /// 
+    /// 3. MODIFY Initialize() method below:
+    ///    - Add overload: Initialize(Team, string, int, PlayerProfile)
+    ///    - Create squads from PlayerProfile.SquadLoadouts instead of fixed count
+    ///    - Apply upgrades to squad stats
+    /// 
+    /// 4. MODIFY CreateInitialSquads():
+    ///    - Add variant: CreateSquadFromLoadout(SquadLoadout, int startNode)
+    ///    - Set squad type, capacity, and special properties from loadout
+    /// 
+    /// 5. ADD persistence layer:
+    ///    - Save/load PlayerProfile to database or cloud
+    ///    - Integrate with authentication system
+    /// 
+    /// 6. Key files to modify:
+    ///    - PlayerSquadManager.cs (this file) - squad creation logic
+    ///    - Squad.cs - add SquadType property and type-specific behavior
+    ///    - ElitesNetworkManager.cs - load PlayerProfile before Initialize()
+    ///    - WarMapUI (to be created) - loadout editor UI
+    /// 
+    /// ============================================================================
     /// </summary>
     public class PlayerSquadManager : NetworkBehaviour
     {
@@ -34,7 +72,7 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private int defaultManpowerPerSquad = DefaultMaxManpower;
         
         [Header("Player Info")]
-        [SyncVar]
+        [SyncVar(hook = nameof(OnFactionChanged))]
         private Team playerFaction = Team.None;
         
         [SyncVar]
@@ -177,14 +215,26 @@ namespace ElitesAndPawns.WarMap
         {
             base.OnStartClient();
             
+            Debug.Log($"[PlayerSquadManager] OnStartClient - isLocalPlayer: {isLocalPlayer}, Faction: {playerFaction}, SquadCount: {syncedSquads?.Count ?? -1}");
+            
             // Subscribe to sync list changes (if available)
             if (syncedSquads != null)
             {
                 syncedSquads.Callback += OnSyncedSquadsChanged;
+                Debug.Log($"[PlayerSquadManager] Subscribed to syncedSquads callback. Initial count: {syncedSquads.Count}");
             }
             
             // Build initial cache
             RebuildSquadCache();
+        }
+        
+        /// <summary>
+        /// Called when playerFaction SyncVar changes on client.
+        /// </summary>
+        private void OnFactionChanged(Team oldFaction, Team newFaction)
+        {
+            Debug.Log($"[PlayerSquadManager] Faction changed: {oldFaction} -> {newFaction} (isLocalPlayer: {isLocalPlayer})");
+            Debug.Log($"[PlayerSquadManager] Current squad count after faction change: {syncedSquads?.Count ?? -1}");
         }
         
         public override void OnStopClient()
@@ -490,6 +540,13 @@ namespace ElitesAndPawns.WarMap
             if (squad.IsMoving || !squad.CanResupply)
                 return false;
             
+            // Can't resupply while actively engaged (capturing or contesting)
+            if (IsSquadEngaged(squad))
+            {
+                Debug.LogWarning($"[PlayerSquadManager] Cannot resupply squad {squad.SquadId} - currently engaged in combat/capture");
+                return false;
+            }
+            
             if (TokenSystem.Instance == null)
                 return false;
             
@@ -508,6 +565,26 @@ namespace ElitesAndPawns.WarMap
         }
         
         /// <summary>
+        /// Check if a squad is currently engaged (at a capturing or contested node).
+        /// </summary>
+        private bool IsSquadEngaged(Squad squad)
+        {
+            if (squad.IsMoving)
+                return false; // Moving squads aren't engaged yet
+            
+            if (CaptureController.Instance == null)
+                return false;
+            
+            var captureAttempt = CaptureController.Instance.GetCaptureAttempt(squad.CurrentNodeId);
+            if (captureAttempt == null)
+                return false;
+            
+            // Squad is engaged if there's an active capture/contest at their node
+            return captureAttempt.State == CaptureState.Capturing || 
+                   captureAttempt.State == CaptureState.Contested;
+        }
+        
+        /// <summary>
         /// Server-side move that bypasses Command authority checks.
         /// Use this from test harnesses or server-authoritative systems.
         /// </summary>
@@ -523,8 +600,23 @@ namespace ElitesAndPawns.WarMap
             if (!squad.CanInitiateMovement())
                 return false;
             
-            if (!ValidateMovePath(squad.CurrentNodeId, targetNodeId))
-                return false;
+            // Check if squad is on a contested node
+            if (IsNodeContested(squad.CurrentNodeId))
+            {
+                // On contested node - can only retreat to previous node
+                if (targetNodeId != squad.PreviousNodeId)
+                {
+                    Debug.LogWarning($"[PlayerSquadManager] Squad {squad.SquadId} on contested node {squad.CurrentNodeId} - can only retreat to node {squad.PreviousNodeId}");
+                    return false;
+                }
+                Debug.Log($"[PlayerSquadManager] Squad {squad.SquadId} retreating from contested node {squad.CurrentNodeId} to {targetNodeId}");
+            }
+            else
+            {
+                // Normal movement - validate path
+                if (!ValidateMovePath(squad.CurrentNodeId, targetNodeId))
+                    return false;
+            }
             
             float travelTime = CalculateTravelTime(squad.CurrentNodeId, targetNodeId);
             
@@ -536,6 +628,88 @@ namespace ElitesAndPawns.WarMap
             RpcSquadMovementStarted(squadIndex, squad.CurrentNodeId, targetNodeId);
             Debug.Log($"[PlayerSquadManager] Squad {squad.SquadId} moving {squad.CurrentNodeId} -> {targetNodeId} (ETA: {travelTime:F1}s)");
             return true;
+        }
+        
+        /// <summary>
+        /// Check if a node is currently contested.
+        /// </summary>
+        private bool IsNodeContested(int nodeId)
+        {
+            if (CaptureController.Instance == null)
+                return false;
+            
+            var captureAttempt = CaptureController.Instance.GetCaptureAttempt(nodeId);
+            return captureAttempt != null && captureAttempt.State == CaptureState.Contested;
+        }
+        
+        /// <summary>
+        /// Force retreat a squad to a target node, ignoring normal movement restrictions.
+        /// Used when a node is captured and squads must retreat.
+        /// </summary>
+        [Server]
+        public bool ServerForceRetreat(int squadIndex, int targetNodeId)
+        {
+            if (squadIndex < 0 || squadIndex >= syncedSquads.Count)
+                return false;
+            
+            var squadData = syncedSquads[squadIndex];
+            var squad = Squad.FromSyncData(squadData);
+            
+            // Force retreat even if already moving - cancel current movement
+            if (squad.IsMoving)
+            {
+                squad.CancelMovement();
+            }
+            
+            // Use a shorter travel time for retreats (urgent!)
+            float travelTime = CalculateTravelTime(squad.CurrentNodeId, targetNodeId) * 0.5f;
+            travelTime = Mathf.Max(5f, travelTime); // Minimum 5 seconds
+            
+            squad.StartMovement(targetNodeId, travelTime);
+            
+            syncedSquads[squadIndex] = squad.ToSyncData();
+            squadsCacheDirty = true;
+            
+            RpcSquadMovementStarted(squadIndex, squad.CurrentNodeId, targetNodeId);
+            Debug.Log($"[PlayerSquadManager] Squad {squad.SquadId} RETREATING to {targetNodeId} (ETA: {travelTime:F1}s)");
+            return true;
+        }
+        
+        /// <summary>
+        /// Consume manpower from a squad (called after battle ends to sync war map).
+        /// </summary>
+        [Server]
+        public bool ServerConsumeManpower(int squadIndex, int amount)
+        {
+            if (squadIndex < 0 || squadIndex >= syncedSquads.Count)
+                return false;
+            
+            var squadData = syncedSquads[squadIndex];
+            var squad = Squad.FromSyncData(squadData);
+            
+            int actualAmount = Mathf.Min(amount, squad.Manpower);
+            squad.Manpower -= actualAmount;
+            
+            syncedSquads[squadIndex] = squad.ToSyncData();
+            squadsCacheDirty = true;
+            
+            RpcSquadManpowerChanged(squadIndex, squad.Manpower);
+            Debug.Log($"[PlayerSquadManager] Squad {squad.SquadId} consumed {actualAmount} manpower (now {squad.Manpower}/{squad.MaxManpower})");
+            return true;
+        }
+        
+        /// <summary>
+        /// Get the index of a squad by its ID.
+        /// </summary>
+        public int GetSquadIndexById(string squadId)
+        {
+            for (int i = 0; i < SquadCount; i++)
+            {
+                var squad = GetSquad(i);
+                if (squad != null && squad.SquadId == squadId)
+                    return i;
+            }
+            return -1;
         }
         
         /// <summary>
@@ -674,9 +848,13 @@ namespace ElitesAndPawns.WarMap
         {
             squadsCacheDirty = true;
             
+            // Log sync changes for debugging
+            Debug.Log($"[PlayerSquadManager] SyncList changed: {op} at index {index} (isLocalPlayer: {isLocalPlayer}, total count: {syncedSquads?.Count ?? -1})");
+            
             switch (op)
             {
                 case SyncList<SquadSyncData>.Operation.OP_ADD:
+                    Debug.Log($"[PlayerSquadManager] Squad added: {newItem.SquadId}");
                     OnSquadCreated?.Invoke(Squad.FromSyncData(newItem));
                     break;
                     
