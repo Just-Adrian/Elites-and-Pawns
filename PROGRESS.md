@@ -1,8 +1,8 @@
 # Elites and Pawns True — Project Status
 
-**Revised:** April 4, 2026  
-**Last Active Development:** November 2025  
-**Engine:** Unity 6 + Mirror Networking (KCP Transport)  
+**Revised:** April 22, 2026
+**Last Active Development:** November 2025
+**Engine:** Unity 6 + Mirror Networking (KCP Transport)
 
 ---
 
@@ -41,12 +41,13 @@ Sixteen WarMap scripts were written in late November 2025 attempting to bridge t
 Assets/_Project/
 ├── Scripts/
 │   ├── Core/         GameManager, Singleton, GameEnums, SimpleTeamManager, SpawnPoint
-│   ├── Networking/   ElitesNetworkManager, NetworkPlayer, PlayerSpawnHandler, etc.
+│   ├── Networking/   ElitesNetworkManager, NetworkPlayer, PlayerSpawnHandler,
+│   │                 DedicatedServerLauncher, ClientBattleRedirector, FPSAutoConnect
 │   ├── Player/       PlayerController, PlayerHealth, PlayerHitbox
 │   ├── Weapons/      BaseWeapon, ProjectileWeapon, Projectile, WeaponData, WeaponManager
 │   ├── GameModes/    ControlPoint, GameModeManager, GameModeUI, ScoreNetworkSync
 │   ├── UI/           PlayerHUD, LocalPlayerCanvas, HUDDebugger
-│   ├── WarMap/       16 scripts (see above)
+│   ├── WarMap/       16 scripts — RTS layer (written, not yet integration-tested)
 │   ├── Debug/        NetworkManagerDebug, TeamSystemDebugger
 │   └── Editor/       WarMapNodePrefabCreator
 ├── Prefabs/          Player, GameModeCanvas, WarMapNode, NetworkPlayer, Projectile_Bullet
@@ -65,16 +66,6 @@ Completed cleanup tasks:
 - Removed duplicate `NodeType` enum from GameEnums.cs (kept WarMapNode.NodeType)
 - Deleted duplicate HUDLayoutFixer.cs
 
-## Pending: Run Refactoring Script
-
-A PowerShell script `refactor-team-to-factiontype.ps1` is ready at the project root.
-Run it to replace all `Team` references with `FactionType` across 16+ WarMap scripts.
-
-After running the script, manually simplify these conversion patterns in:
-- **BattleManager.cs** line ~233: `Team playerFaction = player.Faction == FactionType.Blue ? ...` → just `FactionType playerFaction = player.Faction;`
-- **BattleManager.cs** line ~357: Same pattern with `FactionType winnerFaction = winner == ...` → just `FactionType winnerFaction = winner;`
-- **BattleIntegration.cs** line ~170: `(Team)(int)(killer?.Faction ?? ...)` → just `killer?.Faction ?? FactionType.None`
-
 ## Known Remaining Issues
 
 - `NodeOccupancy.RefreshOccupancyData()` runs every frame doing full squad enumeration — needs event-driven approach
@@ -82,9 +73,6 @@ After running the script, manually simplify these conversion patterns in:
 - `Something.unity` is an unused throwaway scene (can be deleted)
 - Several unused field warnings (non-critical, listed in compilation output)
 
-## Next Steps (To Discuss)
+---
 
-1. Run `refactor-team-to-factiontype.ps1` and verify compilation
-2. Get the project compiling clean after the refactor
-3. Decide: bring up existing WarMap code incrementally, or simplify/rebuild parts?
-4. Test the simplest possible WarMap flow: spawn nodes → see them in scene → click to attack
+*For next actions, see @TODO.md.*

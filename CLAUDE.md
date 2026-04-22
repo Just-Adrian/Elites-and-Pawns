@@ -1,98 +1,108 @@
-# Project Instructions
+# Elites and Pawns True — Project Constitution
 
-This Unity project uses Vibe Unity for automated development workflows.
+**Tier 1 — always loaded. Keep under 200 lines.**
+Area references, feature specs, and decision records are loaded on demand via the `@pointers` at the bottom.
 
-## About Vibe Unity
-Vibe Unity enables claude-code integration for Unity scene creation and project automation.
+---
 
-⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄VIBE-UNITY⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄⌄
+## Why
 
-# Vibe Unity Integration Guide (Auto-generated - v2.0.0)
+A multiplayer FPS/RTS hybrid where a persistent War Map drives tactical FPS battles: a contested node on the strategic map spawns an FPS fight; the battle result flows back to map control. Inspired by Heroes & Generals, Deathgarden, Darktide.
 
-## Claude-Code Automated Workflow
+## What
 
-### Primary Development Pattern
-```bash
-# 1. Validate compilation after code changes
-./claude-compile-check.sh
-# Exit codes: 0=success, 1=errors, 2=timeout, 3=script error
+- **Engine:** Unity 6 (6000.2.8f1), URP
+- **Networking:** Mirror + KCP Transport. Server-authoritative. No P2P.
+- **Language:** C# 9+
+- **VCS:** Git (local; remote pending)
+- **Project root:** `C:\Users\Adrian\Elites and Pawns True`
 
-# 2. Create scenes via JSON (automatic processing)
-echo '{"action":"create-scene","name":"TestScene","path":"Assets/Scenes"}' > .vibe-unity/commands/test.json
+### Folder map (canonical)
 
-# 3. Verify results (check logs after 3 seconds)
-sleep 3 && cat .vibe-unity/commands/logs/latest.log
+```
+Assets/_Project/Scripts/
+├── Core/         GameManager, Singleton, GameEnums, SimpleTeamManager, SpawnPoint
+├── Networking/   ElitesNetworkManager, NetworkPlayer, PlayerSpawnHandler,
+│                 DedicatedServerLauncher, ClientBattleRedirector, FPSAutoConnect,
+│                 FPSPlayerSetup
+├── Player/       PlayerController, PlayerHealth, PlayerHitbox
+├── Weapons/      BaseWeapon, ProjectileWeapon, Projectile, WeaponData, WeaponManager,
+│                 ProjectilePhysicsSettings
+├── GameModes/    ControlPoint, GameModeManager, GameModeUI, ScoreNetworkSync,
+│                 GameModeCanvasSetup
+├── UI/           PlayerHUD, LocalPlayerCanvas, HUDDebugger
+├── WarMap/       17 scripts — RTS layer (written, not yet integration-tested)
+├── Debug/        NetworkManagerDebug, TeamSystemDebugger
+└── Editor/       WarMapNodePrefabCreator
 ```
 
-### Automated Success/Failure Detection
-- ✅ **Success Indicators**: Log contains "Scene created successfully" or "STATUS: SUCCESS"
-- ❌ **Failure Indicators**: Log contains "ERROR", "FAILED", or compilation errors
-- 🔄 **Claude Action**: On failure, immediately report specific error and stop workflow
+### Current state (Apr 2026)
 
-### File Locations for Claude-Code
-- **Compilation Check**: `./claude-compile-check.sh` (auto-installed)
-- **JSON Commands**: Drop files in `.vibe-unity/commands/` directory
-- **Log Verification**: Check `.vibe-unity/commands/logs/latest.log`
-- **Coverage Reports**: `.vibe-unity/commands/coverage-analysis/`
-- **Test Template**: `.vibe-unity/commands/test-scene-creation.json`
+- **FPS layer stable** (Milestones 1 & 1.5): movement, projectile weapons, health/respawn, Blue/Red team assignment, King of the Hill — verified Nov 2025.
+- **WarMap layer written, not yet brought up**: 17 scripts, never run end-to-end. PowerShell refactor `Team` → `FactionType` pending.
+- **Factions (design):** three — RED (Destroyers), BLUE (Architects), GREEN (Hunters). Implemented: Blue, Red. Green is next — not deferred to post-MVP.
 
-### Current Component Support (v2.0.0)
-- ✅ **UI**: Canvas, Button, Text, Image, ScrollView, TextMeshPro
-- ✅ **3D**: Cube, Sphere, Plane, Cylinder, Capsule, Camera, Light
-- ⚠️ **Partial**: Rigidbody, Colliders
-- ❌ **Missing**: ParticleSystem, custom scripts, animations
+See @PROGRESS.md for status and @TODO.md for next actions.
 
-### JSON Command Examples for Claude-Code
-```json
-// Basic scene creation
-{"action":"create-scene","name":"MyScene","path":"Assets/Scenes"}
+## How
 
-// Multiple commands in batch file
-{
-  "commands": [
-    {"action":"create-scene","name":"MenuScene","path":"Assets/Scenes/UI"},
-    {"action":"add-canvas","name":"MainCanvas"},
-    {"action":"add-button","name":"PlayButton","parent":"MainCanvas","text":"Play"}
-  ]
-}
+### Namespaces (canonical)
 
-// Add 3D objects
-{"action":"add-cube","name":"TestCube","position":[0,1,0],"scale":[2,2,2]}
-```
+`ElitesAndPawns.Core` · `.Networking` · `.Player` · `.Weapons` · `.GameModes` · `.UI` · `.WarMap` · `.Debug` · `.Editor`
 
-### Claude-Code Decision Tree
-1. **After C# changes**: Run `./claude-compile-check.sh`
-   - Exit code 0: Proceed with scene creation
-   - Exit code 1: Fix compilation errors immediately, report to user
-   - Exit code 2+: Report timeout/system issues to user
+Folder name = namespace suffix. No exceptions.
 
-2. **For scene operations**: Use JSON commands with automatic verification
-   - Success: Continue workflow
-   - Failure: Report specific error from logs, ask user for guidance
+### Non-negotiable rules
 
-3. **Error Handling**: 
-   - **Compilation errors**: STOP and fix errors
-   - **Scene creation failures**: STOP, report error, ask user to check Unity Console
-   - **Missing components**: Note in summary, continue with supported components
+1. **Factions are represented ONLY by `FactionType` in `GameEnums.cs`.** Never introduce a parallel `Team` enum. Never re-add the nested `NodeType` that was removed — `NodeType` lives on `WarMapNode`. → @Docs/ADRs/001-faction-type-single-enum.md
+2. **`ControlPoint` is a `MonoBehaviour`, not a `NetworkBehaviour`.** Network sync is delegated to a dedicated `ScoreNetworkSync` component. Converting `ControlPoint` to `NetworkBehaviour` was tried and broke UI — do not re-propose. → @Docs/ADRs/002-controlpoint-monobehaviour.md
+3. **Pass gameplay values as RPC parameters, not by reading SyncVars inside the RPC body.** SyncVars may be stale on clients when the RPC fires. → @Docs/ADRs/003-syncvar-vs-rpc-timing.md
+4. **The WarMap scene must use `ElitesNetworkManager`**, never Unity's base `NetworkManager`. Silent-fallback trap: `OnServerAddPlayer` custom init is bypassed otherwise. → @Docs/ADRs/004-scene-network-manager.md
+5. **Unity Inspector settings can't be fixed by code.** Image fill type, Canvas render mode, layer collision matrix, prefab component wiring — these require manual Editor steps on a checklist. → @Docs/ADRs/005-inspector-checklist-gates.md
+6. **Register scene objects explicitly; do not auto-detect via `FindObjectsByType` on startup.** Execution-order traps. → @Docs/ADRs/006-explicit-node-registration.md
+7. **Server-authoritative, always.** Flow is: client input → `[Command]` → server validates → `[SyncVar]` or `[ClientRpc]` → client visual. Never trust a client-reported value for gameplay state.
 
-### Development Workflow Status
-- **File Watcher**: ✅ ENABLED (automatic JSON processing)
-- **Compilation Check**: ✅ AUTOMATED (`./claude-compile-check.sh`)
-- **Log Verification**: ✅ AUTOMATED (structured log parsing)
-- **Error Detection**: ✅ AUTOMATED (exit codes + log analysis)
+### Working style
 
-## Automated Claude Instructions
-* **ALWAYS** run `./claude-compile-check.sh` after modifying C# scripts
-* **ONLY proceed** if compilation check returns exit code 0
-* **VERIFY scene creation** by checking `.vibe-unity/commands/logs/latest.log` for success/error messages
-* **REPORT failures immediately** with specific error details from logs
-* **DO NOT** create .meta files unless explicitly requested
-* **ASK USER** for guidance only when encountering system-level failures or unsupported features
+- **Discuss before implementing.** No code or file changes without explicit approval. Adrian sets direction; Claude implements.
+- **Research over reinvention.** If a non-obvious design decision comes up, check for prior art and scientific consensus before proposing a solution.
+- **Push back, don't yes-man.** If a proposal is weak, say so with reasoning.
+- **Milestone-gated commits.** Test, then commit at milestone boundaries with a descriptive message.
+- **Incremental edits** preferred over full-file rewrites.
+- **Script size:** 150–500 lines per C# file; split at natural boundaries when approaching 400.
+- **Multi-file refactors:** write a PowerShell script and run it locally. Do not loop MCP writes.
+- **Keep Tier 2 docs current.** When code changes invalidate a claim in a Tier 2 reference doc, update the doc in the same session as the code change.
 
-## For Detailed Usage
-- **Full Documentation**: [Package README](./Packages/com.ricoder.vibe-unity/README.md)
-- **JSON Schema Examples**: [Package Test Files](./Packages/com.ricoder.vibe-unity/.vibe-unity/commands/)
-- **Coverage Analysis**: Check latest report in `.vibe-unity/commands/coverage-analysis/`
+### Before reading deeper
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^VIBE-UNITY^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For area-specific work, load only the relevant Tier 2 doc; do not preload all of them. For broad "what exists, what calls what" questions, start at @Docs/SYSTEM_INVENTORY.md — it also contains Mirror usage rules and covers the networking + WarMap layers.
 
+ADRs 001–006 referenced in the non-negotiable rules above are forward references; the behavioral rules themselves are binding regardless of whether the ADR file exists yet. ADRs will be written opportunistically when a session actually proposes re-doing a broken solution.
+
+---
+
+## Further reading
+
+### Tier 2 — area references (load on demand)
+
+- @Docs/SYSTEM_INVENTORY.md — prescriptive "what exists, use this not that", Mirror usage rules, cross-cutting patterns
+- @Docs/GDD.md — game design (three factions, war map concept, MVP scope)
+- @Docs/PROGRESSION.md — future player progression spec (unscheduled)
+
+### Tier 2 — decision records (load when touching related code; created opportunistically)
+
+- @Docs/ADRs/001-faction-type-single-enum.md
+- @Docs/ADRs/002-controlpoint-monobehaviour.md
+- @Docs/ADRs/003-syncvar-vs-rpc-timing.md
+- @Docs/ADRs/004-scene-network-manager.md
+- @Docs/ADRs/005-inspector-checklist-gates.md
+- @Docs/ADRs/006-explicit-node-registration.md
+
+### Tier 3 — living state
+
+- @PROGRESS.md — what's working, what's broken, verified dates
+- @TODO.md — next actions, prioritized; includes WarMap bring-up plan
+
+---
+
+*If a section grows past what fits here, extract it to a Tier 2 doc and replace the content with an @pointer. Keep this file under 200 lines.*
