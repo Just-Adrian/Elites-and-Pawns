@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -426,7 +426,7 @@ namespace ElitesAndPawns.Networking
             {
                 WarMapManager.Instance.EndBattle(nodeId, new BattleResult 
                 { 
-                    WinnerFaction = Team.None,
+                    WinnerFaction = FactionType.None,
                     ControlChange = 0
                 });
             }

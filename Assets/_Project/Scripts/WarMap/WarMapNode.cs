@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,7 +24,7 @@ namespace ElitesAndPawns.WarMap
         
         [Header("Current State")]
         [SyncVar(hook = nameof(OnControllingFactionChanged))]
-        [SerializeField] private Team controllingFaction = Team.None;
+        [SerializeField] private FactionType controllingFaction = FactionType.None;
         
         [SyncVar(hook = nameof(OnControlPercentageChanged))]
         [SerializeField] private float controlPercentage = 0f;
@@ -69,7 +69,7 @@ namespace ElitesAndPawns.WarMap
         public int NodeID => nodeID;
         public string NodeName => nodeName;
         public NodeType Type => nodeType;
-        public Team ControllingFaction => controllingFaction;
+        public FactionType ControllingFaction => controllingFaction;
         public float ControlPercentage => controlPercentage;
         public bool IsContested => isContested;
         public bool IsBattleActive => isBattleActive;
@@ -94,7 +94,7 @@ namespace ElitesAndPawns.WarMap
         /// </summary>
         public int CalculateTokenGeneration()
         {
-            if (controllingFaction == Team.None || isContested || isBattleActive)
+            if (controllingFaction == FactionType.None || isContested || isBattleActive)
                 return 0;
                 
             return Mathf.RoundToInt(baseTokenGeneration * tokenMultiplier * (controlPercentage / 100f));
@@ -104,10 +104,10 @@ namespace ElitesAndPawns.WarMap
         /// Check if a faction can attack this node (optimized).
         /// Requirements: not own node, no active battle, and attacker controls an adjacent node.
         /// </summary>
-        public bool CanBeAttackedBy(Team attackingFaction)
+        public bool CanBeAttackedBy(FactionType attackingFaction)
         {
             // Quick rejections first (no allocations, simple checks)
-            if (attackingFaction == Team.None)
+            if (attackingFaction == FactionType.None)
                 return false;
             
             if (controllingFaction == attackingFaction)
@@ -135,11 +135,11 @@ namespace ElitesAndPawns.WarMap
         /// Check if a faction can attack this node, with detailed reason output.
         /// Use this for UI feedback instead of CanBeAttackedBy for better performance.
         /// </summary>
-        public bool CanBeAttackedBy(Team attackingFaction, out string reason)
+        public bool CanBeAttackedBy(FactionType attackingFaction, out string reason)
         {
             reason = "";
             
-            if (attackingFaction == Team.None)
+            if (attackingFaction == FactionType.None)
             {
                 reason = "Invalid faction";
                 return false;
@@ -172,8 +172,8 @@ namespace ElitesAndPawns.WarMap
         
         #region Events
         
-        public static event Action<WarMapNode, Team> OnNodeCaptured;
-        public static event Action<WarMapNode, Team> OnNodeContested;
+        public static event Action<WarMapNode, FactionType> OnNodeCaptured;
+        public static event Action<WarMapNode, FactionType> OnNodeContested;
         public static event Action<WarMapNode> OnBattleStarted;
         public static event Action<WarMapNode, BattleResult> OnBattleEnded;
         
@@ -196,7 +196,7 @@ namespace ElitesAndPawns.WarMap
         
         #region SyncVar Hooks
         
-        private void OnControllingFactionChanged(Team oldValue, Team newValue)
+        private void OnControllingFactionChanged(FactionType oldValue, FactionType newValue)
         {
             UpdateVisuals();
         }
@@ -266,9 +266,9 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Set the control state of this node.
         /// </summary>
-        public void SetControl(Team faction, float percentage)
+        public void SetControl(FactionType faction, float percentage)
         {
-            Team previousFaction = controllingFaction;
+            FactionType previousFaction = controllingFaction;
             controllingFaction = faction;
             controlPercentage = Mathf.Clamp(percentage, 0f, 100f);
             
@@ -288,7 +288,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Mark this node as contested.
         /// </summary>
-        public void SetContested(bool contested, Team attackingFaction = Team.None)
+        public void SetContested(bool contested, FactionType attackingFaction = FactionType.None)
         {
             isContested = contested;
             
@@ -312,7 +312,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Start a battle at this node.
         /// </summary>
-        public void StartBattle(Team attackingFaction)
+        public void StartBattle(FactionType attackingFaction)
         {
             if (!CanBeAttackedBy(attackingFaction))
             {
@@ -334,7 +334,7 @@ namespace ElitesAndPawns.WarMap
         {
             isBattleActive = false;
             
-            if (result.WinnerFaction != Team.None)
+            if (result.WinnerFaction != FactionType.None)
             {
                 if (result.WinnerFaction != controllingFaction)
                 {
@@ -381,7 +381,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Check if this node connects to a node controlled by the given faction.
         /// </summary>
-        public bool IsAdjacentToFaction(Team faction)
+        public bool IsAdjacentToFaction(FactionType faction)
         {
             for (int i = 0; i < connectedNodes.Count; i++)
             {
@@ -491,9 +491,9 @@ namespace ElitesAndPawns.WarMap
         {
             return controllingFaction switch
             {
-                Team.Blue => blueColor,
-                Team.Red => redColor,
-                Team.Green => greenColor,
+                FactionType.Blue => blueColor,
+                FactionType.Red => redColor,
+                FactionType.Green => greenColor,
                 _ => neutralColor
             };
         }
@@ -519,8 +519,8 @@ namespace ElitesAndPawns.WarMap
     [Serializable]
     public class BattleResult
     {
-        public Team WinnerFaction;
-        public Team LoserFaction;
+        public FactionType WinnerFaction;
+        public FactionType LoserFaction;
         public float ControlChange;
         public int TokensWon;
         public int TokensLost;

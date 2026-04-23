@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -30,7 +30,7 @@ namespace ElitesAndPawns.WarMap
         #region State
         
         // Current faction being controlled (for dev testing)
-        private Team localPlayerFaction = Team.Blue;
+        private FactionType localPlayerFaction = FactionType.Blue;
         
         // Selected node
         private WarMapNode selectedNode;
@@ -337,16 +337,16 @@ namespace ElitesAndPawns.WarMap
             // Faction selector (for dev testing)
             GUILayout.Label("Faction:", labelStyle, GUILayout.Width(50));
             
-            GUI.backgroundColor = localPlayerFaction == Team.Blue ? Color.cyan : Color.gray;
+            GUI.backgroundColor = localPlayerFaction == FactionType.Blue ? Color.cyan : Color.gray;
             if (GUILayout.Button("🔵 Blue", buttonStyle, GUILayout.Width(70)))
             {
-                SwitchFaction(Team.Blue);
+                SwitchFaction(FactionType.Blue);
             }
             
-            GUI.backgroundColor = localPlayerFaction == Team.Red ? Color.red : Color.gray;
+            GUI.backgroundColor = localPlayerFaction == FactionType.Red ? Color.red : Color.gray;
             if (GUILayout.Button("🔴 Red", buttonStyle, GUILayout.Width(70)))
             {
-                SwitchFaction(Team.Red);
+                SwitchFaction(FactionType.Red);
             }
             GUI.backgroundColor = Color.white;
             
@@ -364,11 +364,11 @@ namespace ElitesAndPawns.WarMap
             // Quick action buttons
             if (GUILayout.Button("+500 Blue", buttonStyle, GUILayout.Width(80)))
             {
-                TokenSystem.Instance?.AddTokens(Team.Blue, 500, "Debug");
+                TokenSystem.Instance?.AddTokens(FactionType.Blue, 500, "Debug");
             }
             if (GUILayout.Button("+500 Red", buttonStyle, GUILayout.Width(80)))
             {
-                TokenSystem.Instance?.AddTokens(Team.Red, 500, "Debug");
+                TokenSystem.Instance?.AddTokens(FactionType.Red, 500, "Debug");
             }
             
             GUILayout.Space(10);
@@ -385,7 +385,7 @@ namespace ElitesAndPawns.WarMap
             GUILayout.EndArea();
         }
         
-        void SwitchFaction(Team newFaction)
+        void SwitchFaction(FactionType newFaction)
         {
             if (localPlayerFaction == newFaction) return;
             
@@ -404,7 +404,7 @@ namespace ElitesAndPawns.WarMap
             GUILayout.BeginVertical(boxStyle);
             
             // Header with faction icon
-            string factionIcon = localPlayerFaction == Team.Blue ? "🔵" : "🔴";
+            string factionIcon = localPlayerFaction == FactionType.Blue ? "🔵" : "🔴";
             GUILayout.Box($"{factionIcon} YOUR SQUADS ({localPlayerFaction})", headerStyle);
             
             squadMenuScroll = GUILayout.BeginScrollView(squadMenuScroll);
@@ -430,7 +430,7 @@ namespace ElitesAndPawns.WarMap
                         {
                             GUILayout.Label("ERROR: Player missing PlayerSquadManager!", labelStyle);
                         }
-                        else if (psm.Faction == Team.None)
+                        else if (psm.Faction == FactionType.None)
                         {
                             GUILayout.Label($"Waiting for faction sync... (Squads: {psm.SquadCount})", labelStyle);
                         }
@@ -517,7 +517,7 @@ namespace ElitesAndPawns.WarMap
         {
             if (localSquadManager == null) return;
             
-            int capitalId = localPlayerFaction == Team.Blue ? 0 : 4;
+            int capitalId = localPlayerFaction == FactionType.Blue ? 0 : 4;
             
             for (int i = 0; i < localSquadManager.SquadCount; i++)
             {
@@ -648,7 +648,7 @@ namespace ElitesAndPawns.WarMap
                 bool canRetreat = !squad.IsMoving && squad.Manpower > 0;
                 GUI.enabled = canRetreat;
                 
-                int capitalId = localPlayerFaction == Team.Blue ? 0 : 4;
+                int capitalId = localPlayerFaction == FactionType.Blue ? 0 : 4;
                 if (squad.CurrentNodeId != capitalId)
                 {
                     if (GUILayout.Button("Retreat to Capital", buttonStyle))
@@ -815,8 +815,8 @@ namespace ElitesAndPawns.WarMap
                 GUILayout.Box("⚔ Battle Available!", headerStyle);
                 
                 // Get spawn tickets for each faction
-                int blueTickets = NodeOccupancy.Instance?.GetFactionManpowerAtNode(selectedNode.NodeID, Team.Blue) ?? 0;
-                int redTickets = NodeOccupancy.Instance?.GetFactionManpowerAtNode(selectedNode.NodeID, Team.Red) ?? 0;
+                int blueTickets = NodeOccupancy.Instance?.GetFactionManpowerAtNode(selectedNode.NodeID, FactionType.Blue) ?? 0;
+                int redTickets = NodeOccupancy.Instance?.GetFactionManpowerAtNode(selectedNode.NodeID, FactionType.Red) ?? 0;
                 
                 GUILayout.Label($"🔵 Blue tickets: {blueTickets}", labelStyle);
                 GUILayout.Label($"🔴 Red tickets: {redTickets}", labelStyle);
@@ -830,14 +830,14 @@ namespace ElitesAndPawns.WarMap
                 GUI.enabled = blueTickets > 0;
                 if (GUILayout.Button("⚔ Join Blue", buttonStyle, GUILayout.Height(35)))
                 {
-                    LaunchFPSBattle(selectedNode.NodeID, Team.Blue);
+                    LaunchFPSBattle(selectedNode.NodeID, FactionType.Blue);
                 }
                 
                 GUI.backgroundColor = Color.red;
                 GUI.enabled = redTickets > 0;
                 if (GUILayout.Button("⚔ Join Red", buttonStyle, GUILayout.Height(35)))
                 {
-                    LaunchFPSBattle(selectedNode.NodeID, Team.Red);
+                    LaunchFPSBattle(selectedNode.NodeID, FactionType.Red);
                 }
                 
                 GUI.backgroundColor = Color.white;
@@ -913,7 +913,7 @@ namespace ElitesAndPawns.WarMap
                 if (squadManager != null)
                 {
                     // Check if the manager is initialized (faction synced)
-                    if (squadManager.Faction == Team.None)
+                    if (squadManager.Faction == FactionType.None)
                     {
                         // Manager exists but not initialized yet - wait
                         Debug.Log("[WarMapUI] Squad manager found but not initialized yet (Faction=None). Waiting...");
@@ -937,7 +937,7 @@ namespace ElitesAndPawns.WarMap
             var allManagers = FindObjectsByType<PlayerSquadManager>(FindObjectsSortMode.None);
             foreach (var manager in allManagers)
             {
-                if (manager.Faction == localPlayerFaction && manager.Faction != Team.None)
+                if (manager.Faction == localPlayerFaction && manager.Faction != FactionType.None)
                 {
                     localSquadManager = manager;
                     Debug.Log($"[WarMapUI] Found squad manager by faction search. Faction: {localPlayerFaction}");
@@ -955,13 +955,13 @@ namespace ElitesAndPawns.WarMap
             }
         }
         
-        string GetFactionIcon(Team faction)
+        string GetFactionIcon(FactionType faction)
         {
             return faction switch
             {
-                Team.Blue => "🔵",
-                Team.Red => "🔴",
-                Team.Green => "🟢",
+                FactionType.Blue => "🔵",
+                FactionType.Red => "🔴",
+                FactionType.Green => "🟢",
                 _ => "⚪"
             };
         }
@@ -985,7 +985,7 @@ namespace ElitesAndPawns.WarMap
             return capture.State == CaptureState.Capturing || capture.State == CaptureState.Contested;
         }
         
-        void LaunchFPSBattle(int nodeId, Team faction)
+        void LaunchFPSBattle(int nodeId, FactionType faction)
         {
             if (FPSLauncher.Instance != null)
             {

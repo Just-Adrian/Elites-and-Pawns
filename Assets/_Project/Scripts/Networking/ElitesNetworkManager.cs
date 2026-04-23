@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Mirror;
 using UnityEngine;
 using System.Collections.Generic;
@@ -41,7 +41,7 @@ namespace ElitesAndPawns.Networking
         /// </summary>
         public static bool IsHeadless => Application.isBatchMode;
 
-        // Team Manager reference
+        // FactionType Manager reference
         private SimpleTeamManager teamManager;
         
         // Spawn points cache
@@ -294,8 +294,8 @@ namespace ElitesAndPawns.Networking
                     string displayName = $"Player_{conn.connectionId}";
                     
                     // Convert FactionType to Team
-                    Team team = faction == FactionType.Blue ? Team.Blue : 
-                                faction == FactionType.Red ? Team.Red : Team.Green;
+                    FactionType team = faction == FactionType.Blue ? FactionType.Blue : 
+                                faction == FactionType.Red ? FactionType.Red : FactionType.Green;
                     
                     // FUTURE PROGRESSION: Load player profile before initialization
                     // See: Assets/_Project/Documentation/PROGRESSION_INTEGRATION.md
@@ -333,7 +333,7 @@ namespace ElitesAndPawns.Networking
                 if (debugMode)
                 {
                     Debug.Log($"[ElitesNetworkManager] Player spawned and connected. Assigned to {faction} faction. " +
-                              $"Team counts - Blue: {teamManager?.BluePlayerCount ?? 0}, " +
+                              $"FactionType counts - Blue: {teamManager?.BluePlayerCount ?? 0}, " +
                               $"Red: {teamManager?.RedPlayerCount ?? 0}");
                 }
             }
@@ -506,8 +506,8 @@ namespace ElitesAndPawns.Networking
             // Try to get starting node from WarMapManager
             if (WarMapManager.Instance != null)
             {
-                Team team = faction == FactionType.Blue ? Team.Blue : 
-                            faction == FactionType.Red ? Team.Red : Team.Green;
+                FactionType team = faction == FactionType.Blue ? FactionType.Blue : 
+                            faction == FactionType.Red ? FactionType.Red : FactionType.Green;
                 
                 // Find the faction's home node
                 var nodes = WarMapManager.Instance.Nodes;

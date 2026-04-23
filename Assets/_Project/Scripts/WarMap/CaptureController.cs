@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -56,25 +56,25 @@ namespace ElitesAndPawns.WarMap
         /// Fired when a capture attempt starts.
         /// Parameters: nodeId, attackingFaction
         /// </summary>
-        public static event Action<int, Team> OnCaptureStarted;
+        public static event Action<int, FactionType> OnCaptureStarted;
         
         /// <summary>
         /// Fired when capture progress updates.
         /// Parameters: nodeId, attackingFaction, progress (0-1)
         /// </summary>
-        public static event Action<int, Team, float> OnCaptureProgress;
+        public static event Action<int, FactionType, float> OnCaptureProgress;
         
         /// <summary>
         /// Fired when a node is captured (uncontested victory).
         /// Parameters: nodeId, newOwner
         /// </summary>
-        public static event Action<int, Team> OnNodeCapturedUncontested;
+        public static event Action<int, FactionType> OnNodeCapturedUncontested;
         
         /// <summary>
         /// Fired when a capture becomes contested (enemy squads arrive).
         /// Parameters: nodeId, attackingFaction, defendingFaction
         /// </summary>
-        public static event Action<int, Team, Team> OnCaptureContested;
+        public static event Action<int, FactionType, FactionType> OnCaptureContested;
         
         /// <summary>
         /// Fired when a capture attempt is cancelled (attacker withdrew).
@@ -156,33 +156,33 @@ namespace ElitesAndPawns.WarMap
         private void CheckNodeCaptureState(WarMapNode node)
         {
             int nodeId = node.NodeID;
-            Team nodeOwner = node.ControllingFaction;
+            FactionType nodeOwner = node.ControllingFaction;
             
             // Get faction presence at this node
-            int blueManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, Team.Blue);
-            int redManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, Team.Red);
-            int greenManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, Team.Green);
+            int blueManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, FactionType.Blue);
+            int redManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, FactionType.Red);
+            int greenManpower = NodeOccupancy.Instance.GetFactionManpowerAtNode(nodeId, FactionType.Green);
             
             // Debug: Log if any manpower detected at non-owned node
-            if ((blueManpower > 0 && nodeOwner != Team.Blue) ||
-                (redManpower > 0 && nodeOwner != Team.Red))
+            if ((blueManpower > 0 && nodeOwner != FactionType.Blue) ||
+                (redManpower > 0 && nodeOwner != FactionType.Red))
             {
                 Debug.Log($"[CaptureController] Node {nodeId} ({node.NodeName}): Owner={nodeOwner}, Blue={blueManpower}, Red={redManpower}");
             }
             
             // Determine which factions are present (excluding owner if they have troops)
-            var presentFactions = new List<Team>();
-            if (blueManpower > 0 && nodeOwner != Team.Blue) presentFactions.Add(Team.Blue);
-            if (redManpower > 0 && nodeOwner != Team.Red) presentFactions.Add(Team.Red);
-            if (greenManpower > 0 && nodeOwner != Team.Green) presentFactions.Add(Team.Green);
+            var presentFactions = new List<FactionType>();
+            if (blueManpower > 0 && nodeOwner != FactionType.Blue) presentFactions.Add(FactionType.Blue);
+            if (redManpower > 0 && nodeOwner != FactionType.Red) presentFactions.Add(FactionType.Red);
+            if (greenManpower > 0 && nodeOwner != FactionType.Green) presentFactions.Add(FactionType.Green);
             
             // Also check if owner has defenders
             int ownerManpower = 0;
             switch (nodeOwner)
             {
-                case Team.Blue: ownerManpower = blueManpower; break;
-                case Team.Red: ownerManpower = redManpower; break;
-                case Team.Green: ownerManpower = greenManpower; break;
+                case FactionType.Blue: ownerManpower = blueManpower; break;
+                case FactionType.Red: ownerManpower = redManpower; break;
+                case FactionType.Green: ownerManpower = greenManpower; break;
             }
             
             // Handle different scenarios
@@ -198,7 +198,7 @@ namespace ElitesAndPawns.WarMap
             
             if (presentFactions.Count == 1)
             {
-                Team attacker = presentFactions[0];
+                FactionType attacker = presentFactions[0];
                 
                 // Single attacker present
                 if (ownerManpower > 0)
@@ -216,7 +216,7 @@ namespace ElitesAndPawns.WarMap
             {
                 // Multiple attackers (rare three-way fight)
                 // For now, pick the faction with most manpower as primary attacker
-                Team primaryAttacker = Team.None;
+                FactionType primaryAttacker = FactionType.None;
                 int maxManpower = 0;
                 
                 foreach (var faction in presentFactions)
@@ -242,7 +242,7 @@ namespace ElitesAndPawns.WarMap
         /// Handle uncontested capture (timer-based OR instant if contest was won).
         /// </summary>
         [Server]
-        private void HandleUncontestedCapture(int nodeId, Team attacker, WarMapNode node)
+        private void HandleUncontestedCapture(int nodeId, FactionType attacker, WarMapNode node)
         {
             if (activeCaptureAttempts.TryGetValue(nodeId, out var attempt))
             {
@@ -292,7 +292,7 @@ namespace ElitesAndPawns.WarMap
         /// Handle contested capture (FPS battle needed).
         /// </summary>
         [Server]
-        private void HandleContestedNode(int nodeId, Team attacker, Team defender)
+        private void HandleContestedNode(int nodeId, FactionType attacker, FactionType defender)
         {
             if (activeCaptureAttempts.TryGetValue(nodeId, out var attempt))
             {
@@ -361,7 +361,7 @@ namespace ElitesAndPawns.WarMap
         /// Handle multi-faction contest (three-way fight).
         /// </summary>
         [Server]
-        private void HandleMultiFactionContest(int nodeId, List<Team> factions, Team originalOwner)
+        private void HandleMultiFactionContest(int nodeId, List<FactionType> factions, FactionType originalOwner)
         {
             // For multi-faction, we need special handling
             // For now, treat as contested with highest manpower as primary attacker
@@ -379,7 +379,7 @@ namespace ElitesAndPawns.WarMap
             {
                 NodeId = nodeId,
                 AttackingFaction = factions[0],
-                DefendingFaction = originalOwner != Team.None ? originalOwner : factions[1],
+                DefendingFaction = originalOwner != FactionType.None ? originalOwner : factions[1],
                 StartTime = Time.time,
                 State = CaptureState.Contested,
                 ContestedTime = Time.time,
@@ -414,16 +414,16 @@ namespace ElitesAndPawns.WarMap
         /// Complete a capture (uncontested victory or contest won).
         /// </summary>
         [Server]
-        private void CompleteCapture(int nodeId, Team newOwner)
+        private void CompleteCapture(int nodeId, FactionType newOwner)
         {
             var node = WarMapManager.Instance?.GetNodeByID(nodeId);
             if (node == null)
                 return;
             
-            Team previousOwner = node.ControllingFaction;
+            FactionType previousOwner = node.ControllingFaction;
             
             // Retreat any losing faction's squads before changing ownership
-            if (previousOwner != Team.None && previousOwner != newOwner)
+            if (previousOwner != FactionType.None && previousOwner != newOwner)
             {
                 RetreatSquadsFromNode(nodeId, previousOwner);
             }
@@ -445,7 +445,7 @@ namespace ElitesAndPawns.WarMap
         /// Force squads of a faction to retreat from a node to nearest allied node.
         /// </summary>
         [Server]
-        private void RetreatSquadsFromNode(int nodeId, Team retreatingFaction)
+        private void RetreatSquadsFromNode(int nodeId, FactionType retreatingFaction)
         {
             if (NodeOccupancy.Instance == null || WarMapManager.Instance == null)
                 return;
@@ -494,7 +494,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Find the nearest connected node controlled by a faction.
         /// </summary>
-        private int FindNearestAlliedNode(int fromNodeId, Team faction)
+        private int FindNearestAlliedNode(int fromNodeId, FactionType faction)
         {
             var fromNode = WarMapManager.Instance?.GetNodeByID(fromNodeId);
             if (fromNode == null)
@@ -591,7 +591,7 @@ namespace ElitesAndPawns.WarMap
         /// Prepare a node for FPS battle.
         /// </summary>
         [Server]
-        private void PrepareFPSBattle(int nodeId, Team attacker, Team defender)
+        private void PrepareFPSBattle(int nodeId, FactionType attacker, FactionType defender)
         {
             // Check if BattleSceneBridge exists
             if (BattleSceneBridge.Instance == null)
@@ -640,7 +640,7 @@ namespace ElitesAndPawns.WarMap
         /// Called by BattleManager when a battle ends.
         /// </summary>
         [Server]
-        public void OnBattleEnded(int nodeId, Team winner)
+        public void OnBattleEnded(int nodeId, FactionType winner)
         {
             Debug.Log($"[CaptureController] Battle ended at node {nodeId}. Winner: {winner}");
             
@@ -746,14 +746,14 @@ namespace ElitesAndPawns.WarMap
         #region Network RPCs
         
         [ClientRpc]
-        private void RpcNotifyCaptureStarted(int nodeId, Team attacker)
+        private void RpcNotifyCaptureStarted(int nodeId, FactionType attacker)
         {
             Debug.Log($"[CaptureController-Client] Node {nodeId}: {attacker} started capture");
             OnCaptureStarted?.Invoke(nodeId, attacker);
         }
         
         [ClientRpc]
-        private void RpcNotifyCaptureContested(int nodeId, Team attacker, Team defender)
+        private void RpcNotifyCaptureContested(int nodeId, FactionType attacker, FactionType defender)
         {
             Debug.Log($"[CaptureController-Client] Node {nodeId}: Contested! {attacker} vs {defender}");
             OnCaptureContested?.Invoke(nodeId, attacker, defender);
@@ -767,7 +767,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         [ClientRpc]
-        private void RpcNotifyNodeCaptured(int nodeId, Team newOwner)
+        private void RpcNotifyNodeCaptured(int nodeId, FactionType newOwner)
         {
             Debug.Log($"[CaptureController-Client] Node {nodeId}: Captured by {newOwner}!");
             OnNodeCapturedUncontested?.Invoke(nodeId, newOwner);
@@ -777,7 +777,7 @@ namespace ElitesAndPawns.WarMap
         private void RpcUpdateCaptureProgress(int nodeId, float progress)
         {
             // UI can subscribe to OnCaptureProgress event
-            OnCaptureProgress?.Invoke(nodeId, Team.None, progress);
+            OnCaptureProgress?.Invoke(nodeId, FactionType.None, progress);
         }
         
         #endregion
@@ -792,8 +792,8 @@ namespace ElitesAndPawns.WarMap
     public class CaptureAttempt
     {
         public int NodeId;
-        public Team AttackingFaction;
-        public Team DefendingFaction;
+        public FactionType AttackingFaction;
+        public FactionType DefendingFaction;
         public CaptureState State;
         public float StartTime;
         public float CaptureProgress; // 0-1

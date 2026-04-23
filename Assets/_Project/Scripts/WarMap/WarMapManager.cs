@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -61,7 +61,7 @@ namespace ElitesAndPawns.WarMap
         private WarState currentWarState = WarState.Preparation;
         
         [SyncVar]
-        private Team winningFaction = Team.None;
+        private FactionType winningFaction = FactionType.None;
         
         #endregion
         
@@ -70,7 +70,7 @@ namespace ElitesAndPawns.WarMap
         public List<WarMapNode> Nodes => warMapNodes;
         public WarState CurrentState => currentWarState;
         public bool IsWarActive => warActive;
-        public Team WinningFaction => winningFaction;
+        public FactionType WinningFaction => winningFaction;
         public int ActiveBattleCount => activeBattles.Count;
         
         #endregion
@@ -78,10 +78,10 @@ namespace ElitesAndPawns.WarMap
         #region Events
         
         public static event Action<WarState> OnWarStateUpdated;
-        public static event Action<WarMapNode, Team> OnBattleRequested;
+        public static event Action<WarMapNode, FactionType> OnBattleRequested;
         public static event Action<BattleSession> OnBattleStarted;
         public static event Action<BattleSession, BattleResult> OnBattleCompleted;
-        public static event Action<Team> OnWarEnded;
+        public static event Action<FactionType> OnWarEnded;
         
         #endregion
         
@@ -367,16 +367,16 @@ namespace ElitesAndPawns.WarMap
         {
             // Blue starts with node 0 (their capital)
             if (warMapNodes.Count > 0)
-                warMapNodes[0].SetControl(Team.Blue, 100f);
+                warMapNodes[0].SetControl(FactionType.Blue, 100f);
             
             // Red starts with node 4 (their capital)
             if (warMapNodes.Count > 4)
-                warMapNodes[4].SetControl(Team.Red, 100f);
+                warMapNodes[4].SetControl(FactionType.Red, 100f);
             
             // Nodes 1, 2, 3 start neutral
             for (int i = 1; i <= 3 && i < warMapNodes.Count; i++)
             {
-                warMapNodes[i].SetControl(Team.None, 0f);
+                warMapNodes[i].SetControl(FactionType.None, 0f);
             }
             
             Debug.Log("[WarMapManager] Initial faction control set");
@@ -402,7 +402,7 @@ namespace ElitesAndPawns.WarMap
         /// End the war with a winner
         /// </summary>
         [Server]
-        private void EndWar(Team winner)
+        private void EndWar(FactionType winner)
         {
             warActive = false;
             winningFaction = winner;
@@ -428,7 +428,7 @@ namespace ElitesAndPawns.WarMap
         /// Request to start a battle at a node
         /// </summary>
         [Command(requiresAuthority = false)]
-        public void CmdRequestBattle(int nodeID, Team attackingFaction)
+        public void CmdRequestBattle(int nodeID, FactionType attackingFaction)
         {
             var node = GetNodeByID(nodeID);
             if (node == null)
@@ -474,7 +474,7 @@ namespace ElitesAndPawns.WarMap
         /// This spawns an FPS battle server via DedicatedServerLauncher.
         /// </summary>
         [Server]
-        private void StartBattle(WarMapNode node, Team attackingFaction)
+        private void StartBattle(WarMapNode node, FactionType attackingFaction)
         {
             // Create battle session
             var battleSession = new BattleSession
@@ -541,7 +541,7 @@ namespace ElitesAndPawns.WarMap
                     Debug.LogWarning($"[WarMapManager] Failed to spawn FPS server for node {node.NodeID}");
                     // Clean up failed battle
                     activeBattles.Remove(node.NodeID);
-                    node.EndBattle(new BattleResult { WinnerFaction = Team.None });
+                    node.EndBattle(new BattleResult { WinnerFaction = FactionType.None });
                 }
             }
             else
@@ -610,7 +610,7 @@ namespace ElitesAndPawns.WarMap
         /// Notify clients that a battle has ended.
         /// </summary>
         [ClientRpc]
-        private void RpcNotifyBattleEnded(int nodeID, Team winner)
+        private void RpcNotifyBattleEnded(int nodeID, FactionType winner)
         {
             Debug.Log($"[WarMapManager-Client] Battle ended at node {nodeID}, winner: {winner}");
         }
@@ -662,23 +662,23 @@ namespace ElitesAndPawns.WarMap
                 return;
             
             // Count nodes controlled by each faction
-            Dictionary<Team, int> nodeControl = new Dictionary<Team, int>
+            Dictionary<FactionType, int> nodeControl = new Dictionary<FactionType, int>
             {
-                { Team.Blue, 0 },
-                { Team.Red, 0 },
-                { Team.Green, 0 }
+                { FactionType.Blue, 0 },
+                { FactionType.Red, 0 },
+                { FactionType.Green, 0 }
             };
             
-            Dictionary<Team, float> totalControl = new Dictionary<Team, float>
+            Dictionary<FactionType, float> totalControl = new Dictionary<FactionType, float>
             {
-                { Team.Blue, 0f },
-                { Team.Red, 0f },
-                { Team.Green, 0f }
+                { FactionType.Blue, 0f },
+                { FactionType.Red, 0f },
+                { FactionType.Green, 0f }
             };
             
             foreach (var node in warMapNodes)
             {
-                if (node.ControllingFaction != Team.None)
+                if (node.ControllingFaction != FactionType.None)
                 {
                     nodeControl[node.ControllingFaction]++;
                     totalControl[node.ControllingFaction] += node.ControlPercentage;
@@ -686,7 +686,7 @@ namespace ElitesAndPawns.WarMap
             }
             
             // Check victory conditions for each faction
-            foreach (var faction in new[] { Team.Blue, Team.Red, Team.Green })
+            foreach (var faction in new[] { FactionType.Blue, FactionType.Red, FactionType.Green })
             {
                 // Victory by node control
                 if (nodeControl[faction] >= nodesRequiredForVictory)
@@ -723,7 +723,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get all nodes controlled by a faction
         /// </summary>
-        public List<WarMapNode> GetFactionNodes(Team faction)
+        public List<WarMapNode> GetFactionNodes(FactionType faction)
         {
             return warMapNodes.Where(n => n.ControllingFaction == faction).ToList();
         }
@@ -731,7 +731,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get all nodes that can be attacked by a faction
         /// </summary>
-        public List<WarMapNode> GetAttackableNodes(Team faction)
+        public List<WarMapNode> GetAttackableNodes(FactionType faction)
         {
             return warMapNodes.Where(n => n.CanBeAttackedBy(faction)).ToList();
         }
@@ -739,7 +739,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Calculate faction strength (for AI or balancing)
         /// </summary>
-        public float CalculateFactionStrength(Team faction)
+        public float CalculateFactionStrength(FactionType faction)
         {
             float strength = 0f;
             
@@ -787,7 +787,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         [ClientRpc]
-        private void RpcNotifyBattleStart(int nodeID, Team attackingFaction)
+        private void RpcNotifyBattleStart(int nodeID, FactionType attackingFaction)
         {
             Debug.Log($"[WarMapManager-Client] Battle notification: Node {nodeID} under attack by {attackingFaction}");
             // In a full implementation, this would show UI notifications
@@ -827,8 +827,8 @@ namespace ElitesAndPawns.WarMap
         {
             public int NodeID;
             public string NodeName;
-            public Team AttackingFaction;
-            public Team DefendingFaction;
+            public FactionType AttackingFaction;
+            public FactionType DefendingFaction;
             public float StartTime;
             public float EndTime;
             public bool IsActive;

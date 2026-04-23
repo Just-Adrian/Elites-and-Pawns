@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -46,7 +46,7 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private int startingTokens = 500;
         
         [Header("Current State")]
-        private Dictionary<Team, FactionTokenData> factionTokens = new Dictionary<Team, FactionTokenData>();
+        private Dictionary<FactionType, FactionTokenData> factionTokens = new Dictionary<FactionType, FactionTokenData>();
         private float nextCycleTime;
         private bool isInitialized = false;
         
@@ -67,7 +67,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get the current token count for a faction.
         /// </summary>
-        public int GetFactionTokens(Team faction)
+        public int GetFactionTokens(FactionType faction)
         {
             if (factionTokens.ContainsKey(faction))
                 return factionTokens[faction].CurrentTokens;
@@ -77,7 +77,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Check if a faction can afford a given cost.
         /// </summary>
-        public bool CanAfford(Team faction, int cost)
+        public bool CanAfford(FactionType faction, int cost)
         {
             return GetFactionTokens(faction) >= cost;
         }
@@ -95,19 +95,19 @@ namespace ElitesAndPawns.WarMap
         /// Fired when a faction's token count changes.
         /// Parameters: faction, newTotal
         /// </summary>
-        public static event Action<Team, int> OnTokensChanged;
+        public static event Action<FactionType, int> OnTokensChanged;
         
         /// <summary>
         /// Fired when tokens are spent.
         /// Parameters: faction, amount, reason
         /// </summary>
-        public static event Action<Team, int, string> OnTokensSpent;
+        public static event Action<FactionType, int, string> OnTokensSpent;
         
         /// <summary>
         /// Fired when tokens are earned.
         /// Parameters: faction, amount, reason
         /// </summary>
-        public static event Action<Team, int, string> OnTokensEarned;
+        public static event Action<FactionType, int, string> OnTokensEarned;
         
         /// <summary>
         /// Fired when a token generation cycle completes.
@@ -153,9 +153,9 @@ namespace ElitesAndPawns.WarMap
         private void InitializeTokenSystem()
         {
             // Initialize faction token data
-            factionTokens[Team.Blue] = new FactionTokenData(Team.Blue, startingTokens);
-            factionTokens[Team.Red] = new FactionTokenData(Team.Red, startingTokens);
-            factionTokens[Team.Green] = new FactionTokenData(Team.Green, startingTokens);
+            factionTokens[FactionType.Blue] = new FactionTokenData(FactionType.Blue, startingTokens);
+            factionTokens[FactionType.Red] = new FactionTokenData(FactionType.Red, startingTokens);
+            factionTokens[FactionType.Green] = new FactionTokenData(FactionType.Green, startingTokens);
             
             // Sync initial values
             if (isServer)
@@ -182,9 +182,9 @@ namespace ElitesAndPawns.WarMap
         /// <param name="amount">Amount of tokens to add</param>
         /// <param name="reason">Reason for the addition (for logging/UI)</param>
         [Server]
-        public void AddTokens(Team faction, int amount, string reason = "")
+        public void AddTokens(FactionType faction, int amount, string reason = "")
         {
-            if (!isInitialized || faction == Team.None)
+            if (!isInitialized || faction == FactionType.None)
                 return;
                 
             if (factionTokens.ContainsKey(faction))
@@ -225,9 +225,9 @@ namespace ElitesAndPawns.WarMap
         /// <param name="reason">Reason for the expenditure (for logging/UI)</param>
         /// <returns>True if successful, false if insufficient funds</returns>
         [Server]
-        public bool SpendTokens(Team faction, int amount, string reason = "")
+        public bool SpendTokens(FactionType faction, int amount, string reason = "")
         {
-            if (!isInitialized || faction == Team.None)
+            if (!isInitialized || faction == FactionType.None)
                 return false;
                 
             if (!CanAfford(faction, amount))
@@ -283,17 +283,17 @@ namespace ElitesAndPawns.WarMap
             WarMapNode[] nodes = FindObjectsByType<WarMapNode>(FindObjectsSortMode.None);
             
             // Calculate token generation for each faction based on held territory
-            Dictionary<Team, int> territoryGeneration = new Dictionary<Team, int>
+            Dictionary<FactionType, int> territoryGeneration = new Dictionary<FactionType, int>
             {
-                { Team.Blue, 0 },
-                { Team.Red, 0 },
-                { Team.Green, 0 }
+                { FactionType.Blue, 0 },
+                { FactionType.Red, 0 },
+                { FactionType.Green, 0 }
             };
             
             foreach (var node in nodes)
             {
                 // Only generate tokens from uncontested, controlled nodes
-                if (node.ControllingFaction != Team.None && !node.IsContested && !node.IsBattleActive)
+                if (node.ControllingFaction != FactionType.None && !node.IsContested && !node.IsBattleActive)
                 {
                     int nodeTokens = node.CalculateTokenGeneration();
                     territoryGeneration[node.ControllingFaction] += nodeTokens;
@@ -303,7 +303,7 @@ namespace ElitesAndPawns.WarMap
             // Award tokens to each faction
             foreach (var kvp in territoryGeneration)
             {
-                Team faction = kvp.Key;
+                FactionType faction = kvp.Key;
                 int territoryTokens = kvp.Value;
                 int totalGeneration = territoryTokens + baseTokensPerCycle;
                 
@@ -320,17 +320,17 @@ namespace ElitesAndPawns.WarMap
         /// Update the network-synced token values.
         /// </summary>
         [Server]
-        private void UpdateSyncedTokens(Team faction, int newValue)
+        private void UpdateSyncedTokens(FactionType faction, int newValue)
         {
             switch (faction)
             {
-                case Team.Blue:
+                case FactionType.Blue:
                     blueTokens = newValue;
                     break;
-                case Team.Red:
+                case FactionType.Red:
                     redTokens = newValue;
                     break;
-                case Team.Green:
+                case FactionType.Green:
                     greenTokens = newValue;
                     break;
             }
@@ -343,7 +343,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get transaction history for a faction.
         /// </summary>
-        public List<TokenTransaction> GetTransactionHistory(Team faction)
+        public List<TokenTransaction> GetTransactionHistory(FactionType faction)
         {
             if (factionTokens.TryGetValue(faction, out var data))
             {
@@ -355,7 +355,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get total tokens earned by a faction since war start.
         /// </summary>
-        public int GetTotalEarned(Team faction)
+        public int GetTotalEarned(FactionType faction)
         {
             if (factionTokens.TryGetValue(faction, out var data))
                 return data.TotalEarned;
@@ -365,7 +365,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get total tokens spent by a faction since war start.
         /// </summary>
-        public int GetTotalSpent(Team faction)
+        public int GetTotalSpent(FactionType faction)
         {
             if (factionTokens.TryGetValue(faction, out var data))
                 return data.TotalSpent;
@@ -385,7 +385,7 @@ namespace ElitesAndPawns.WarMap
         /// Set tokens directly (for testing/admin).
         /// </summary>
         [Server]
-        public void SetTokens(Team faction, int amount)
+        public void SetTokens(FactionType faction, int amount)
         {
             if (factionTokens.ContainsKey(faction))
             {
@@ -401,28 +401,28 @@ namespace ElitesAndPawns.WarMap
         
         private void OnBlueTokensChanged(int oldValue, int newValue)
         {
-            if (factionTokens.ContainsKey(Team.Blue))
+            if (factionTokens.ContainsKey(FactionType.Blue))
             {
-                factionTokens[Team.Blue].CurrentTokens = newValue;
-                OnTokensChanged?.Invoke(Team.Blue, newValue);
+                factionTokens[FactionType.Blue].CurrentTokens = newValue;
+                OnTokensChanged?.Invoke(FactionType.Blue, newValue);
             }
         }
         
         private void OnRedTokensChanged(int oldValue, int newValue)
         {
-            if (factionTokens.ContainsKey(Team.Red))
+            if (factionTokens.ContainsKey(FactionType.Red))
             {
-                factionTokens[Team.Red].CurrentTokens = newValue;
-                OnTokensChanged?.Invoke(Team.Red, newValue);
+                factionTokens[FactionType.Red].CurrentTokens = newValue;
+                OnTokensChanged?.Invoke(FactionType.Red, newValue);
             }
         }
         
         private void OnGreenTokensChanged(int oldValue, int newValue)
         {
-            if (factionTokens.ContainsKey(Team.Green))
+            if (factionTokens.ContainsKey(FactionType.Green))
             {
-                factionTokens[Team.Green].CurrentTokens = newValue;
-                OnTokensChanged?.Invoke(Team.Green, newValue);
+                factionTokens[FactionType.Green].CurrentTokens = newValue;
+                OnTokensChanged?.Invoke(FactionType.Green, newValue);
             }
         }
         
@@ -436,13 +436,13 @@ namespace ElitesAndPawns.WarMap
         [Serializable]
         private class FactionTokenData
         {
-            public Team Faction;
+            public FactionType Faction;
             public int CurrentTokens;
             public int TotalEarned;
             public int TotalSpent;
             public List<TokenTransaction> TransactionHistory;
             
-            public FactionTokenData(Team faction, int startingTokens)
+            public FactionTokenData(FactionType faction, int startingTokens)
             {
                 Faction = faction;
                 CurrentTokens = startingTokens;

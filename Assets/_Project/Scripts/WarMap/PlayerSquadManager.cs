@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -73,7 +73,7 @@ namespace ElitesAndPawns.WarMap
         
         [Header("Player Info")]
         [SyncVar(hook = nameof(OnFactionChanged))]
-        private Team playerFaction = Team.None;
+        private FactionType playerFaction = FactionType.None;
         
         [SyncVar]
         private string playerDisplayName = "";
@@ -106,7 +106,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// The faction this player belongs to.
         /// </summary>
-        public Team Faction => playerFaction;
+        public FactionType Faction => playerFaction;
         
         /// <summary>
         /// Display name of this player.
@@ -231,7 +231,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Called when playerFaction SyncVar changes on client.
         /// </summary>
-        private void OnFactionChanged(Team oldFaction, Team newFaction)
+        private void OnFactionChanged(FactionType oldFaction, FactionType newFaction)
         {
             Debug.Log($"[PlayerSquadManager] Faction changed: {oldFaction} -> {newFaction} (isLocalPlayer: {isLocalPlayer})");
             Debug.Log($"[PlayerSquadManager] Current squad count after faction change: {syncedSquads?.Count ?? -1}");
@@ -269,7 +269,7 @@ namespace ElitesAndPawns.WarMap
         /// Called by server when player joins a faction.
         /// </summary>
         [Server]
-        public void Initialize(Team faction, string displayName, int startingNodeId)
+        public void Initialize(FactionType faction, string displayName, int startingNodeId)
         {
             if (syncedSquads == null)
             {

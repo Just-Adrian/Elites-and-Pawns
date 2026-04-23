@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using Mirror;
 using ElitesAndPawns.Core;
@@ -202,7 +202,7 @@ namespace ElitesAndPawns.WarMap
             
             // Attackers
             GUILayout.BeginVertical(boxStyle);
-            GUILayout.Label($"{GetFactionIcon(parameters?.AttackingFaction ?? Team.None)} ATTACKERS", labelStyle);
+            GUILayout.Label($"{GetFactionIcon(parameters?.AttackingFaction ?? FactionType.None)} ATTACKERS", labelStyle);
             GUILayout.Label($"Players: {BattleLobby.Instance.AttackerCount}", labelStyle);
             GUILayout.Label($"Ready: {BattleLobby.Instance.AttackerReady}", labelStyle);
             GUILayout.Label($"Tickets: {parameters?.AttackerSpawnTickets ?? 0}", labelStyle);
@@ -212,7 +212,7 @@ namespace ElitesAndPawns.WarMap
             
             // Defenders
             GUILayout.BeginVertical(boxStyle);
-            GUILayout.Label($"{GetFactionIcon(parameters?.DefendingFaction ?? Team.None)} DEFENDERS", labelStyle);
+            GUILayout.Label($"{GetFactionIcon(parameters?.DefendingFaction ?? FactionType.None)} DEFENDERS", labelStyle);
             GUILayout.Label($"Players: {BattleLobby.Instance.DefenderCount}", labelStyle);
             GUILayout.Label($"Ready: {BattleLobby.Instance.DefenderReady}", labelStyle);
             GUILayout.Label($"Tickets: {parameters?.DefenderSpawnTickets ?? 0}", labelStyle);
@@ -266,7 +266,7 @@ namespace ElitesAndPawns.WarMap
         
         #region Actions
         
-        void JoinBattle(int nodeId, Team faction)
+        void JoinBattle(int nodeId, FactionType faction)
         {
             // Launch FPS as a separate process
             if (FPSLauncher.Instance != null)
@@ -285,13 +285,13 @@ namespace ElitesAndPawns.WarMap
         
         #region Helpers
         
-        string GetFactionIcon(Team faction)
+        string GetFactionIcon(FactionType faction)
         {
             return faction switch
             {
-                Team.Blue => "🔵",
-                Team.Red => "🔴",
-                Team.Green => "🟢",
+                FactionType.Blue => "🔵",
+                FactionType.Red => "🔴",
+                FactionType.Green => "🟢",
                 _ => "⚪"
             };
         }

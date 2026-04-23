@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -29,15 +29,15 @@ namespace ElitesAndPawns.Core
             }
         }
 
-        [Header("Team Configuration")]
+        [Header("FactionType Configuration")]
         [SerializeField] private int maxPlayersPerTeam = 8;
         [SerializeField] private bool autoBalance = true;
 
-        [Header("Team Scores")]
+        [Header("FactionType Scores")]
         private int blueScore = 0;
         private int redScore = 0;
 
-        [Header("Team Tracking")]
+        [Header("FactionType Tracking")]
         private List<uint> bluePlayers = new List<uint>();
         private List<uint> redPlayers = new List<uint>();
 

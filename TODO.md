@@ -1,6 +1,6 @@
 # TODO — Elites and Pawns True
 
-**Last reviewed:** 2026-04-22
+**Last reviewed:** 2026-04-23
 *If this date is more than 2 weeks old, re-evaluate items below before acting.*
 
 ### Maintenance rules
@@ -14,26 +14,37 @@
 
 ## Immediate next action
 
-- [ ] Run `refactor-team-to-factiontype.ps1` at project root and verify Unity compiles clean.
-
-Everything below blocks on this.
+- [ ] Git commit the `Team → FactionType` refactor. Suggested message: `refactor: unify Team → FactionType across WarMap and Networking layers`
+- [ ] Delete `refactor-team-to-factiontype.ps1` from project root (`git rm` as part of the commit, or remove and commit separately).
 
 ---
 
-## After the refactor (ordered)
+## Next session scope (per Adrian 2026-04-23)
 
-- [ ] Manually simplify three conversion spots the script can't handle:
-  - `BattleManager.cs` line ~233: `Team playerFaction = player.Faction == FactionType.Blue ? ...` → `FactionType playerFaction = player.Faction;`
-  - `BattleManager.cs` line ~357: `FactionType winnerFaction = winner == ...` → `FactionType winnerFaction = winner;`
-  - `BattleIntegration.cs` line ~170: `(Team)(int)(killer?.Faction ?? ...)` → `killer?.Faction ?? FactionType.None`
-- [ ] Confirm compile-clean in Unity Editor.
-- [ ] Project-wide search for `enum Team` — the now-orphaned declaration will surface. Delete it.
-- [ ] Delete the `FactionType → Team` conversion block in `ElitesNetworkManager.OnServerAddPlayer`.
-- [ ] Confirm compile-clean again; run FPS smoke test (host + client join, shoot, KotH point capture).
-- [ ] Git commit: `refactor: unify Team → FactionType across WarMap layer`
-- [ ] Write ADR 001 (FactionType as canonical) — now reflects reality, not intent.
-- [ ] Shrink the "FactionType vs Team" section in @Docs/SYSTEM_INVENTORY.md to one sentence + ADR 001 pointer.
-- [ ] Begin WarMap bring-up (plan below).
+Focus: validate what compiles actually works, then connect the two layers.
+
+- [ ] **FPS client-join test.** Host + KotH verified 2026-04-23; client-join still untested. This exercises `OnServerAddPlayer` which is the most-refactored path.
+- [ ] **RTS: verify per-player squad assignment.** Does each connected player actually receive independent squads to control, or is it broken?
+- [ ] **RTS: fix node faction-color rendering.** All nodes currently appear gray regardless of `ControllingFaction`. Likely in `WarMapNode.UpdateVisuals()` or a material/Inspector wiring issue — triage first, don't assume the fix.
+- [ ] **End-to-end RTS ↔ FPS integration test.** Once the above two RTS issues are cleared, walk the full pipeline: squad movement → capture detection → FPS battle trigger → result feedback. See WarMap bring-up Phases 2–4 below.
+
+---
+
+## Post-refactor cleanup (low priority, compiles as-is)
+
+Redundant self-ternaries the PS script left behind. Pattern: `faction == FactionType.Blue ? FactionType.Blue : ...` — behaviorally correct but dead identity conversions. Simplify to direct assignment.
+
+- [ ] `BattleManager.cs` ~L233 — `playerFaction` ternary → `player.Faction`.
+- [ ] `BattleManager.cs` ~L357 — `winnerFaction` ternary → direct assignment of `winner`.
+- [ ] `BattleManager.cs` ~L425 — `GameModeManager.WinningTeam` ternary → direct assignment.
+- [ ] `BattleIntegration.cs` ~L170 — drop the `(FactionType)(int)(...)` cast chain.
+- [ ] `ElitesNetworkManager.cs` ~L285 — `team` self-ternary in `OnServerAddPlayer`; also fix stale comment `// Convert FactionType to Team`.
+- [ ] `ElitesNetworkManager.cs` ~L405 — `team` self-ternary in `GetFactionStartingNode`.
+
+Regex-mangled strings from the refactor (cosmetic only):
+
+- [ ] `ElitesNetworkManager.cs` — field comment `// FactionType Manager reference` (should be `// Team Manager reference`).
+- [ ] `ElitesNetworkManager.cs` — `Debug.Log` template `"FactionType counts - Blue: ..."` (should be `"Team counts - Blue: ..."`).
 
 ---
 
@@ -58,6 +69,13 @@ Everything below blocks on this.
 - [ ] Write down every error in console. Don't fix yet — build a triage list.
 
 ### Phase 3 — Triage and fix (order items by: blocks bring-up > perf > cosmetic)
+
+Pre-loaded items observed during the 2026-04-23 post-refactor smoke-test (see "Next session scope" above):
+
+- [ ] RTS: investigate why node faction coloring doesn't render (all nodes gray).
+- [ ] RTS: verify per-player squad assignment actually produces independent squads per player.
+
+Other Phase 3 items:
 
 - [ ] Fix any blockers from Phase 2 triage list, one at a time, smallest fix that works.
 - [ ] `NodeOccupancy.RefreshOccupancyData()` runs `FindObjectsByType` every frame — convert to event-driven. Only fix if Phase 2 shows perf problems; otherwise defer.

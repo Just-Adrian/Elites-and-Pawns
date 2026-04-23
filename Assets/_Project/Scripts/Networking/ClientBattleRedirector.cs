@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
@@ -70,7 +70,7 @@ namespace ElitesAndPawns.Networking
         /// <summary>
         /// Our faction (for passing to FPS client)
         /// </summary>
-        private Team myFaction = Team.None;
+        private FactionType myFaction = FactionType.None;
         
         /// <summary>
         /// Player display name
@@ -180,7 +180,7 @@ namespace ElitesAndPawns.Networking
         /// Set this client's faction and player info.
         /// Called when we connect to the RTS server and get assigned.
         /// </summary>
-        public void SetPlayerInfo(Team faction, string playerName)
+        public void SetPlayerInfo(FactionType faction, string playerName)
         {
             myFaction = faction;
             myPlayerName = playerName;
@@ -479,7 +479,7 @@ namespace ElitesAndPawns.Networking
         public bool IsInBattle => false;
         public int CurrentBattleNode => -1;
         
-        public void SetPlayerInfo(Team faction, string playerName) { }
+        public void SetPlayerInfo(FactionType faction, string playerName) { }
         public void RegisterForBattle(int nodeId) { }
         public void UnregisterFromBattle(int nodeId) { }
         public void JoinBattle(int nodeId, string serverAddress, ushort port) { }

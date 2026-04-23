@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -71,13 +71,13 @@ namespace ElitesAndPawns.WarMap
         /// Fired when a node runs out of friendly manpower.
         /// Parameters: nodeId, faction
         /// </summary>
-        public static event Action<int, Team> OnNodeManpowerDepleted;
+        public static event Action<int, FactionType> OnNodeManpowerDepleted;
         
         /// <summary>
         /// Fired when squads arrive or leave a node.
         /// Parameters: nodeId, faction, totalManpower
         /// </summary>
-        public static event Action<int, Team, int> OnNodeOccupancyChanged;
+        public static event Action<int, FactionType, int> OnNodeOccupancyChanged;
         
         #endregion
         
@@ -187,7 +187,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get the total manpower for a faction at a specific node.
         /// </summary>
-        public int GetFactionManpowerAtNode(int nodeId, Team faction)
+        public int GetFactionManpowerAtNode(int nodeId, FactionType faction)
         {
             if (!nodeOccupancy.TryGetValue(nodeId, out var data))
                 return 0;
@@ -220,7 +220,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Check if a faction has any manpower at a node.
         /// </summary>
-        public bool HasFactionPresence(int nodeId, Team faction)
+        public bool HasFactionPresence(int nodeId, FactionType faction)
         {
             return GetFactionManpowerAtNode(nodeId, faction) > 0;
         }
@@ -233,9 +233,9 @@ namespace ElitesAndPawns.WarMap
             if (!nodeOccupancy.TryGetValue(nodeId, out var data))
                 return false;
             
-            bool hasBlue = data.GetFactionManpower(Team.Blue) > 0;
-            bool hasRed = data.GetFactionManpower(Team.Red) > 0;
-            bool hasGreen = data.GetFactionManpower(Team.Green) > 0;
+            bool hasBlue = data.GetFactionManpower(FactionType.Blue) > 0;
+            bool hasRed = data.GetFactionManpower(FactionType.Red) > 0;
+            bool hasGreen = data.GetFactionManpower(FactionType.Green) > 0;
             
             int factionsPresent = (hasBlue ? 1 : 0) + (hasRed ? 1 : 0) + (hasGreen ? 1 : 0);
             return factionsPresent > 1;
@@ -267,7 +267,7 @@ namespace ElitesAndPawns.WarMap
         /// <param name="squadOwnerNetId">Output: Network ID of the player who owns the squad</param>
         /// <returns>True if spawn ticket was granted</returns>
         [Server]
-        public bool RequestSpawnTicket(int nodeId, Team faction, uint spawningPlayerNetId, 
+        public bool RequestSpawnTicket(int nodeId, FactionType faction, uint spawningPlayerNetId, 
                                         out string selectedSquadId, out uint squadOwnerNetId)
         {
             selectedSquadId = "";
@@ -497,8 +497,8 @@ namespace ElitesAndPawns.WarMap
             {
                 var data = kvp.Value;
                 sb.AppendLine($"Node {kvp.Key}:");
-                sb.AppendLine($"  Blue: {data.GetFactionManpower(Team.Blue)} manpower");
-                sb.AppendLine($"  Red: {data.GetFactionManpower(Team.Red)} manpower");
+                sb.AppendLine($"  Blue: {data.GetFactionManpower(FactionType.Blue)} manpower");
+                sb.AppendLine($"  Red: {data.GetFactionManpower(FactionType.Red)} manpower");
                 sb.AppendLine($"  Squads: {data.PresentSquads.Count} present, {data.IncomingSquads.Count} incoming");
             }
             
@@ -528,7 +528,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get total manpower for a faction at this node.
         /// </summary>
-        public int GetFactionManpower(Team faction)
+        public int GetFactionManpower(FactionType faction)
         {
             int total = 0;
             foreach (var squad in PresentSquads)
@@ -542,7 +542,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get total incoming manpower for a faction.
         /// </summary>
-        public int GetFactionIncomingManpower(Team faction)
+        public int GetFactionIncomingManpower(FactionType faction)
         {
             int total = 0;
             foreach (var squad in IncomingSquads)
@@ -563,7 +563,7 @@ namespace ElitesAndPawns.WarMap
         public string SquadId;
         public uint OwnerNetId;
         public string OwnerDisplayName;
-        public Team Faction;
+        public FactionType Faction;
         public int Manpower;
         public float ETA; // For incoming squads
     }

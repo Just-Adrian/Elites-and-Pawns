@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ElitesAndPawns.Core;
@@ -32,12 +32,12 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// The faction attacking the node.
         /// </summary>
-        public Team AttackingFaction;
+        public FactionType AttackingFaction;
         
         /// <summary>
         /// The faction defending the node.
         /// </summary>
-        public Team DefendingFaction;
+        public FactionType DefendingFaction;
         
         #endregion
         
@@ -126,7 +126,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Create battle parameters from a contested node.
         /// </summary>
-        public static BattleParameters FromContestedNode(int nodeId, Team attacker, Team defender)
+        public static BattleParameters FromContestedNode(int nodeId, FactionType attacker, FactionType defender)
         {
             var node = WarMapManager.Instance?.GetNodeByID(nodeId);
             
@@ -182,7 +182,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get total remaining spawn tickets for a faction.
         /// </summary>
-        public int GetFactionTickets(Team faction)
+        public int GetFactionTickets(FactionType faction)
         {
             int total = 0;
             var squads = faction == AttackingFaction ? AttackerSquads : DefenderSquads;
@@ -229,7 +229,7 @@ namespace ElitesAndPawns.WarMap
         /// Prefers squads owned by the specified player.
         /// Returns the squadId that was used, or null if no tickets available.
         /// </summary>
-        public string ConsumeTicketFromFaction(Team faction, uint preferredOwnerNetId = 0)
+        public string ConsumeTicketFromFaction(FactionType faction, uint preferredOwnerNetId = 0)
         {
             var squads = faction == AttackingFaction ? AttackerSquads : DefenderSquads;
             
@@ -309,7 +309,7 @@ namespace ElitesAndPawns.WarMap
         public string SquadId;
         public uint OwnerNetId;
         public string OwnerDisplayName;
-        public Team Faction;
+        public FactionType Faction;
         public int InitialManpower;
         public int CurrentManpower;
         public int TicketsConsumed;

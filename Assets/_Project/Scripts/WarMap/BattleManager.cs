@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -49,10 +49,10 @@ namespace ElitesAndPawns.WarMap
         private int syncedNodeId;
         
         [SyncVar]
-        private Team syncedAttacker;
+        private FactionType syncedAttacker;
         
         [SyncVar]
-        private Team syncedDefender;
+        private FactionType syncedDefender;
         
         [SyncVar]
         private string syncedNodeName;
@@ -73,8 +73,8 @@ namespace ElitesAndPawns.WarMap
         #region Events
         
         public static event Action<BattleState> OnBattleStateChanged_Event;
-        public static event Action<Team, int> OnTicketsChanged; // faction, newCount
-        public static event Action<Team> OnBattleEnded; // winner
+        public static event Action<FactionType, int> OnTicketsChanged; // faction, newCount
+        public static event Action<FactionType> OnBattleEnded; // winner
         public static event Action<string> OnSquadReinforced; // squadId
         public static event Action<string> OnSquadRetreated; // squadId
         
@@ -86,8 +86,8 @@ namespace ElitesAndPawns.WarMap
         public int AttackerTickets => syncedAttackerTickets;
         public int DefenderTickets => syncedDefenderTickets;
         public int NodeId => syncedNodeId;
-        public Team AttackingFaction => syncedAttacker;
-        public Team DefendingFaction => syncedDefender;
+        public FactionType AttackingFaction => syncedAttacker;
+        public FactionType DefendingFaction => syncedDefender;
         public string NodeName => syncedNodeName;
         public BattleParameters Parameters => battleParameters;
         public bool IsBattleActive => currentState == BattleState.InProgress;
@@ -214,10 +214,10 @@ namespace ElitesAndPawns.WarMap
             if (battleParameters == null || currentState != BattleState.InProgress)
                 return false;
             
-            Team playerFaction = player.Faction == FactionType.Blue ? Team.Blue : 
-                                 player.Faction == FactionType.Red ? Team.Red : Team.None;
+            FactionType playerFaction = player.Faction == FactionType.Blue ? FactionType.Blue : 
+                                 player.Faction == FactionType.Red ? FactionType.Red : FactionType.None;
             
-            if (playerFaction == Team.None)
+            if (playerFaction == FactionType.None)
             {
                 Debug.LogWarning($"[BattleManager] Player {player.PlayerName} has no faction!");
                 return false;
@@ -249,7 +249,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Check if a faction has spawn tickets available.
         /// </summary>
-        public bool HasSpawnTickets(Team faction)
+        public bool HasSpawnTickets(FactionType faction)
         {
             if (battleParameters == null) return false;
             return battleParameters.GetFactionTickets(faction) > 0;
@@ -258,7 +258,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get remaining tickets for a faction.
         /// </summary>
-        public int GetFactionTickets(Team faction)
+        public int GetFactionTickets(FactionType faction)
         {
             if (battleParameters == null) return 0;
             return battleParameters.GetFactionTickets(faction);
@@ -368,7 +368,7 @@ namespace ElitesAndPawns.WarMap
             else if (attackerTickets <= 0 && defenderTickets <= 0)
             {
                 // Both exhausted - check game mode score or declare draw
-                Team winner = DetermineWinnerByScore();
+                FactionType winner = DetermineWinnerByScore();
                 EndBattle(winner, BattleEndReason.MutualExhaustion);
             }
             
@@ -377,29 +377,29 @@ namespace ElitesAndPawns.WarMap
             {
                 if (!GameModeManager.Instance.IsGameActive && GameModeManager.Instance.WinningTeam != FactionType.None)
                 {
-                    Team winner = GameModeManager.Instance.WinningTeam == FactionType.Blue ? Team.Blue : Team.Red;
+                    FactionType winner = GameModeManager.Instance.WinningTeam == FactionType.Blue ? FactionType.Blue : FactionType.Red;
                     EndBattle(winner, BattleEndReason.ObjectiveCompleted);
                 }
             }
         }
         
-        private Team DetermineWinnerByScore()
+        private FactionType DetermineWinnerByScore()
         {
             if (GameModeManager.Instance != null)
             {
                 if (GameModeManager.Instance.BlueScore > GameModeManager.Instance.RedScore)
-                    return Team.Blue;
+                    return FactionType.Blue;
                 else if (GameModeManager.Instance.RedScore > GameModeManager.Instance.BlueScore)
-                    return Team.Red;
+                    return FactionType.Red;
             }
-            return Team.None; // Draw
+            return FactionType.None; // Draw
         }
         
         /// <summary>
         /// End the battle with a winner.
         /// </summary>
         [Server]
-        public void EndBattle(Team winner, BattleEndReason reason)
+        public void EndBattle(FactionType winner, BattleEndReason reason)
         {
             if (currentState != BattleState.InProgress)
                 return;
@@ -411,8 +411,8 @@ namespace ElitesAndPawns.WarMap
             // Stop game mode
             if (integrateWithGameModeManager && GameModeManager.Instance != null)
             {
-                FactionType winnerFaction = winner == Team.Blue ? FactionType.Blue : 
-                                            winner == Team.Red ? FactionType.Red : FactionType.None;
+                FactionType winnerFaction = winner == FactionType.Blue ? FactionType.Blue : 
+                                            winner == FactionType.Red ? FactionType.Red : FactionType.None;
                 GameModeManager.Instance.EndGame(winnerFaction);
             }
             
@@ -530,13 +530,13 @@ namespace ElitesAndPawns.WarMap
         }
         
         [ClientRpc]
-        private void RpcNotifyTicketsChanged(Team faction, int newCount)
+        private void RpcNotifyTicketsChanged(FactionType faction, int newCount)
         {
             OnTicketsChanged?.Invoke(faction, newCount);
         }
         
         [ClientRpc]
-        private void RpcNotifyReinforcements(string squadId, Team faction, int manpower)
+        private void RpcNotifyReinforcements(string squadId, FactionType faction, int manpower)
         {
             Debug.Log($"[BattleManager] Reinforcements arrived: {faction} +{manpower} tickets");
             OnSquadReinforced?.Invoke(squadId);
@@ -549,7 +549,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         [ClientRpc]
-        private void RpcNotifyBattleEnded(Team winner, BattleEndReason reason)
+        private void RpcNotifyBattleEnded(FactionType winner, BattleEndReason reason)
         {
             Debug.Log($"[BattleManager] Battle ended - Winner: {winner}, Reason: {reason}");
             OnBattleEnded?.Invoke(winner);
@@ -600,8 +600,8 @@ namespace ElitesAndPawns.WarMap
     {
         public string BattleId;
         public int NodeId;
-        public Team Winner;
-        public Team Loser;
+        public FactionType Winner;
+        public FactionType Loser;
         public BattleEndReason Reason;
         public int AttackerTicketsRemaining;
         public int DefenderTicketsRemaining;

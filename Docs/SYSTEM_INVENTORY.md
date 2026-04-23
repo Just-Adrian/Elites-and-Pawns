@@ -1,6 +1,6 @@
 # System Inventory — Elites and Pawns True
 
-**Last reviewed:** 2026-04-22
+**Last reviewed:** 2026-04-23
 *If this date is more than a month old, spot-check a few namespaces against reality before trusting claims here.*
 
 **Purpose:** Prescriptive "what exists, use this not that" map. When adding code or debugging, check here first to avoid duplicating existing systems or violating canonical patterns.
@@ -40,13 +40,13 @@ Canonical location for cross-cutting types: enums, singletons, game-wide state, 
 
 Mirror-facing code + cross-process FPS/RTS launch machinery.
 
-- **`ElitesNetworkManager.cs`** — canonical NetworkManager subclass. **Always extend this, never Mirror's base `NetworkManager` directly** (ADR 004). Handles: CLI arg parsing, dedicated-server auto-start in batch mode, projectile prefab auto-registration from WeaponData, team spawn caching, player spawning + faction assignment, `PlayerSquadManager` + `NodeOccupancy` wiring on join. Also contains inline `FactionType ↔ Team` conversion code that disappears post-refactor.
+- **`ElitesNetworkManager.cs`** — canonical NetworkManager subclass. **Always extend this, never Mirror's base `NetworkManager` directly** (ADR 004). Handles: CLI arg parsing, dedicated-server auto-start in batch mode, projectile prefab auto-registration from WeaponData, team spawn caching, player spawning + faction assignment, `PlayerSquadManager` + `NodeOccupancy` wiring on join. Contains two redundant self-ternaries (leftovers from the `Team → FactionType` refactor) in `OnServerAddPlayer` and `GetFactionStartingNode` — flagged for cleanup in TODO.
 - **`NetworkPlayer.cs`** — per-player `NetworkBehaviour` identity. Stores `FactionType Faction` and `PlayerName`. Assigned by `ElitesNetworkManager.OnServerAddPlayer`.
 - **`PlayerSpawnHandler.cs`** — per-player spawn logic and respawn choreography.
 - **`DedicatedServerLauncher.cs`** *(singleton)* — **RTS-server-side process spawner.** Starts FPS battle server processes (one per active battle) with `-dedicated` and battle parameters. Emits `OnBattleServerReady` / `OnBattleServerStopped`; `WarMapManager` subscribes.
 - **`ClientBattleRedirector.cs`** *(singleton)* — **RTS-client-side launcher.** Receives `RpcNotifyBattleServerReady` from server and launches an FPS client process with connection args.
 - **`FPSAutoConnect.cs`** — **FPS-build startup logic.** Parses CLI args to decide host/client/dedicated mode and initializes accordingly.
-- **`FPSPlayerSetup.cs`** — attached to the FPS player prefab. Handles local player setup (camera, audio listener, CharacterController) and stores `Team faction` + `targetNodeId` SyncVars. Still uses `Team`; PS refactor will convert.
+- **`FPSPlayerSetup.cs`** — attached to the FPS player prefab. Handles local player setup (camera, audio listener, CharacterController) and stores `FactionType faction` + `targetNodeId` SyncVars.
 
 ---
 
@@ -158,23 +158,11 @@ Prescriptive rules for any new networked code. These are Mirror framework rules,
 
 ---
 
-## Cross-cutting: FactionType vs Team (mid-refactor)
+## Cross-cutting: FactionType is the canonical faction enum
 
-**Current reality (2026-04-22):** `FactionType` is defined in `GameEnums.cs` and is the canonical faction enum. But `Team` — an older parallel enum — still exists somewhere in the WarMap namespace and is used throughout the WarMap layer plus `FPSPlayerSetup`. `ElitesNetworkManager.OnServerAddPlayer` contains inline `FactionType → Team` conversion code that exists solely because of this duplication.
+`FactionType` in `GameEnums.cs` is the single project-wide faction enum. The parallel `Team` enum was removed in a 23-file refactor on 2026-04-23; no `Team` references remain. Any new faction-aware code must use `FactionType`.
 
-**Team enum declaration location:** not pinpointed during audit. Verified it is NOT in any Core file and NOT in 15 of the 17 WarMap files I inspected. It must be defined in the middle section of one of: `CaptureController`, `NodeOccupancy`, `TokenSystem`, `BattleManager`, `PlayerSquadManager`, `BattleIntegration`, `BattleUI`, `WarMapUI`, or `WarMapTestHarness`. The refactor PS script renames all `Team.*` usages but does not delete the declaration.
-
-**Resolution sequence:**
-
-1. Run `refactor-team-to-factiontype.ps1` at project root (see @TODO.md).
-2. Apply the three manual simplifications listed in TODO (in `BattleManager.cs` and `BattleIntegration.cs`).
-3. Confirm Unity compiles clean.
-4. Project-wide search for `enum Team` — the now-orphaned declaration will surface. Delete it.
-5. Also delete the `FactionType ↔ Team` conversion block in `ElitesNetworkManager.OnServerAddPlayer`.
-6. Commit.
-7. Rewrite this section down to one sentence + @Docs/ADRs/001-faction-type-single-enum.md pointer.
-
-**Rule for any new code in the interim:** always write `FactionType`. Never add new `Team` references.
+See @Docs/ADRs/001-faction-type-single-enum.md for rationale and hard-won lessons from the refactor (including why the mid-refactor audit recorded in earlier versions of this file was partly wrong).
 
 ---
 

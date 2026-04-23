@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 using Mirror;
@@ -78,8 +78,8 @@ namespace ElitesAndPawns.Networking
         #region Parsed Arguments - Server
         
         private int nodeId = -1;
-        private Team attackingFaction = Team.None;
-        private Team defendingFaction = Team.None;
+        private FactionType attackingFaction = FactionType.None;
+        private FactionType defendingFaction = FactionType.None;
         private int attackerTickets = 100;
         private int defenderTickets = 100;
         private string battleId = "";
@@ -90,7 +90,7 @@ namespace ElitesAndPawns.Networking
         
         #region Parsed Arguments - Client
         
-        private Team clientFaction = Team.None;
+        private FactionType clientFaction = FactionType.None;
         private string clientPlayerName = "Soldier";
         private string serverAddress = "localhost";
         
@@ -120,9 +120,9 @@ namespace ElitesAndPawns.Networking
         #region Properties
         
         public int TargetNodeId => nodeId;
-        public Team AttackingFaction => attackingFaction;
-        public Team DefendingFaction => defendingFaction;
-        public Team ClientFaction => clientFaction;
+        public FactionType AttackingFaction => attackingFaction;
+        public FactionType DefendingFaction => defendingFaction;
+        public FactionType ClientFaction => clientFaction;
         public string PlayerName => clientPlayerName;
         public bool WasLaunchedFromRTS => hasLaunchArgs;
         public bool IsHost => NetworkServer.active;
@@ -398,10 +398,10 @@ namespace ElitesAndPawns.Networking
                     
                     // The server will assign faction based on battle parameters
                     // But we can request a specific faction if needed
-                    if (clientFaction != Team.None)
+                    if (clientFaction != FactionType.None)
                     {
-                        FactionType factionType = clientFaction == Team.Blue ? FactionType.Blue :
-                                                  clientFaction == Team.Red ? FactionType.Red : FactionType.None;
+                        FactionType factionType = clientFaction == FactionType.Blue ? FactionType.Blue :
+                                                  clientFaction == FactionType.Red ? FactionType.Red : FactionType.None;
                         networkPlayer.CmdRequestFaction(factionType);
                     }
                     
@@ -546,7 +546,7 @@ namespace ElitesAndPawns.Networking
                         break;
                         
                     case "-attacker":
-                        if (hasNext && Enum.TryParse<Team>(args[++i], true, out Team att))
+                        if (hasNext && Enum.TryParse<FactionType>(args[++i], true, out FactionType att))
                         {
                             attackingFaction = att;
                             hasLaunchArgs = true;
@@ -554,7 +554,7 @@ namespace ElitesAndPawns.Networking
                         break;
                         
                     case "-defender":
-                        if (hasNext && Enum.TryParse<Team>(args[++i], true, out Team def))
+                        if (hasNext && Enum.TryParse<FactionType>(args[++i], true, out FactionType def))
                         {
                             defendingFaction = def;
                             hasLaunchArgs = true;
@@ -616,7 +616,7 @@ namespace ElitesAndPawns.Networking
                         break;
                         
                     case "-faction":
-                        if (hasNext && Enum.TryParse<Team>(args[++i], true, out Team f))
+                        if (hasNext && Enum.TryParse<FactionType>(args[++i], true, out FactionType f))
                         {
                             clientFaction = f;
                             hasLaunchArgs = true;

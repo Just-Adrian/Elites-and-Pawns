@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -83,7 +83,7 @@ namespace ElitesAndPawns.WarMap
         /// Launch FPS for a player joining a battle.
         /// First player starts as host, subsequent players connect as clients.
         /// </summary>
-        public void LaunchFPS(int nodeId, Team faction, string playerName = "Soldier")
+        public void LaunchFPS(int nodeId, FactionType faction, string playerName = "Soldier")
         {
             string exePath = GetFPSExecutablePath();
             
@@ -131,7 +131,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Force launch as host (for testing or server-side spawning).
         /// </summary>
-        public void LaunchFPSAsHost(int nodeId, Team faction, string playerName, ushort port)
+        public void LaunchFPSAsHost(int nodeId, FactionType faction, string playerName, ushort port)
         {
             string exePath = GetFPSExecutablePath();
             if (!ValidateExecutable(exePath)) return;
@@ -153,7 +153,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Force launch as client (for players joining existing battles).
         /// </summary>
-        public void LaunchFPSAsClient(int nodeId, Team faction, string playerName, string server, ushort port)
+        public void LaunchFPSAsClient(int nodeId, FactionType faction, string playerName, string server, ushort port)
         {
             string exePath = GetFPSExecutablePath();
             if (!ValidateExecutable(exePath)) return;
@@ -204,12 +204,12 @@ namespace ElitesAndPawns.WarMap
         
         #region Private Methods
         
-        private string BuildHostArgs(int nodeId, Team faction, string playerName, ushort port)
+        private string BuildHostArgs(int nodeId, FactionType faction, string playerName, ushort port)
         {
             return $"-host -node {nodeId} -faction {faction} -name \"{playerName}\" -port {port}";
         }
         
-        private string BuildClientArgs(int nodeId, Team faction, string playerName, string server, ushort port)
+        private string BuildClientArgs(int nodeId, FactionType faction, string playerName, string server, ushort port)
         {
             return $"-client -server {server} -port {port} -node {nodeId} -faction {faction} -name \"{playerName}\"";
         }
@@ -241,7 +241,7 @@ namespace ElitesAndPawns.WarMap
             return true;
         }
         
-        private void LaunchProcess(string exePath, string args, int nodeId, Team faction)
+        private void LaunchProcess(string exePath, string args, int nodeId, FactionType faction)
         {
             Debug.Log($"[FPSLauncher] Launching: {exePath}");
             Debug.Log($"[FPSLauncher] Arguments: {args}");

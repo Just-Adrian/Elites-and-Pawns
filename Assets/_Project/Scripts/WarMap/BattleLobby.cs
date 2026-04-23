@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
@@ -158,7 +158,7 @@ namespace ElitesAndPawns.WarMap
         /// Join the lobby for a specific faction.
         /// </summary>
         [Command(requiresAuthority = false)]
-        public void CmdJoinLobby(uint playerNetId, Team faction)
+        public void CmdJoinLobby(uint playerNetId, FactionType faction)
         {
             if (currentState == LobbyState.Inactive || currentState == LobbyState.BattleStarting)
             {
@@ -241,7 +241,7 @@ namespace ElitesAndPawns.WarMap
         /// Server-side join (bypass command).
         /// </summary>
         [Server]
-        public void ServerJoinLobby(uint playerNetId, Team faction)
+        public void ServerJoinLobby(uint playerNetId, FactionType faction)
         {
             CmdJoinLobby(playerNetId, faction);
         }
@@ -386,13 +386,13 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get which faction a player is on.
         /// </summary>
-        public Team GetPlayerFaction(uint playerNetId)
+        public FactionType GetPlayerFaction(uint playerNetId)
         {
             if (attackerPlayers.Contains(playerNetId))
-                return battleParameters?.AttackingFaction ?? Team.None;
+                return battleParameters?.AttackingFaction ?? FactionType.None;
             if (defenderPlayers.Contains(playerNetId))
-                return battleParameters?.DefendingFaction ?? Team.None;
-            return Team.None;
+                return battleParameters?.DefendingFaction ?? FactionType.None;
+            return FactionType.None;
         }
         
         /// <summary>
@@ -408,7 +408,7 @@ namespace ElitesAndPawns.WarMap
         #region RPCs
         
         [ClientRpc]
-        private void RpcNotifyLobbyStarted(int nodeId, string nodeName, Team attacker, Team defender)
+        private void RpcNotifyLobbyStarted(int nodeId, string nodeName, FactionType attacker, FactionType defender)
         {
             Debug.Log($"[BattleLobby] Lobby started for {nodeName} - {attacker} vs {defender}");
             OnLobbyStarted?.Invoke();

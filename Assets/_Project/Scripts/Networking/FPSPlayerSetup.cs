@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Mirror;
 using ElitesAndPawns.Core;
 
@@ -11,18 +11,18 @@ namespace ElitesAndPawns.Networking
     public class FPSPlayerSetup : NetworkBehaviour
     {
         [SyncVar]
-        private Team faction = Team.None;
+        private FactionType faction = FactionType.None;
         
         [SyncVar]
         private int targetNodeId = -1;
         
-        public Team Faction => faction;
+        public FactionType Faction => faction;
         public int TargetNodeId => targetNodeId;
         
         /// <summary>
         /// Called by server when spawning this player.
         /// </summary>
-        public void SetFaction(Team newFaction)
+        public void SetFaction(FactionType newFaction)
         {
             faction = newFaction;
             Debug.Log($"[FPSPlayerSetup] Faction set to: {faction}");

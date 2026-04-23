@@ -1,4 +1,4 @@
-using Mirror;
+﻿using Mirror;
 using UnityEngine;
 using System.Collections;
 using ElitesAndPawns.Core;
@@ -100,12 +100,12 @@ namespace ElitesAndPawns.Networking
             if (BattleManager.Instance != null)
             {
                 // Check which factions are in this battle
-                Team attacker = BattleManager.Instance.AttackingFaction;
-                Team defender = BattleManager.Instance.DefendingFaction;
+                FactionType attacker = BattleManager.Instance.AttackingFaction;
+                FactionType defender = BattleManager.Instance.DefendingFaction;
                 
                 // Convert requested faction to Team
-                Team requestedTeam = requestedFaction == FactionType.Blue ? Team.Blue :
-                                     requestedFaction == FactionType.Red ? Team.Red : Team.Green;
+                FactionType requestedTeam = requestedFaction == FactionType.Blue ? FactionType.Blue :
+                                     requestedFaction == FactionType.Red ? FactionType.Red : FactionType.Green;
                 
                 // Only allow if this faction is part of the battle
                 if (requestedTeam == attacker || requestedTeam == defender)
@@ -117,7 +117,7 @@ namespace ElitesAndPawns.Networking
                 {
                     Debug.LogWarning($"[NetworkPlayer] {playerName} tried to join {requestedFaction} but battle is {attacker} vs {defender}");
                     // Assign to attacker by default
-                    faction = attacker == Team.Blue ? FactionType.Blue : FactionType.Red;
+                    faction = attacker == FactionType.Blue ? FactionType.Blue : FactionType.Red;
                 }
             }
             else
@@ -254,10 +254,10 @@ namespace ElitesAndPawns.Networking
             CmdSetPlayerName(desiredName);
             
             // Set faction if we have launch args
-            if (FPSAutoConnect.Instance != null && FPSAutoConnect.Instance.ClientFaction != Team.None)
+            if (FPSAutoConnect.Instance != null && FPSAutoConnect.Instance.ClientFaction != FactionType.None)
             {
-                FactionType factionType = FPSAutoConnect.Instance.ClientFaction == Team.Blue ? FactionType.Blue :
-                                          FPSAutoConnect.Instance.ClientFaction == Team.Red ? FactionType.Red : FactionType.None;
+                FactionType factionType = FPSAutoConnect.Instance.ClientFaction == FactionType.Blue ? FactionType.Blue :
+                                          FPSAutoConnect.Instance.ClientFaction == FactionType.Red ? FactionType.Red : FactionType.None;
                 if (factionType != FactionType.None)
                 {
                     CmdRequestFaction(factionType);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using Mirror;
 using ElitesAndPawns.Core;
@@ -77,7 +77,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Which faction this squad belongs to.
         /// </summary>
-        public Team Faction;
+        public FactionType Faction;
         
         /// <summary>
         /// Current manpower in this squad. Each point = 1 spawn ticket.
@@ -190,7 +190,7 @@ namespace ElitesAndPawns.WarMap
         /// <param name="squadIndex">Index (0-2) for this player's squads</param>
         /// <param name="startingNodeId">Node where the squad starts</param>
         /// <param name="maxManpower">Maximum manpower capacity</param>
-        public Squad(uint ownerNetId, string ownerName, Team faction, int squadIndex, 
+        public Squad(uint ownerNetId, string ownerName, FactionType faction, int squadIndex, 
                      int startingNodeId, int maxManpower = 8)
         {
             SquadId = $"{ownerNetId}_{squadIndex}";
@@ -216,7 +216,7 @@ namespace ElitesAndPawns.WarMap
             SquadId = "";
             OwnerNetId = 0;
             OwnerDisplayName = "";
-            Faction = Team.None;
+            Faction = FactionType.None;
             SquadIndex = 0;
             CurrentNodeId = -1;
             PreviousNodeId = -1;
@@ -375,7 +375,7 @@ namespace ElitesAndPawns.WarMap
                 SquadId = data.SquadId,
                 OwnerNetId = data.OwnerNetId,
                 OwnerDisplayName = data.OwnerDisplayName,
-                Faction = (Team)data.Faction,
+                Faction = (FactionType)data.Faction,
                 Manpower = data.Manpower,
                 MaxManpower = data.MaxManpower,
                 CurrentNodeId = data.CurrentNodeId,

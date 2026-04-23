@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
 using ElitesAndPawns.Core;
@@ -40,8 +40,8 @@ namespace ElitesAndPawns.WarMap
         [Header("Battle Configuration")]
         [SerializeField] private bool isBattleScene = false;
         [SerializeField] private int battleNodeID = -1;
-        [SerializeField] private Team attackingFaction = Team.None;
-        [SerializeField] private Team defendingFaction = Team.None;
+        [SerializeField] private FactionType attackingFaction = FactionType.None;
+        [SerializeField] private FactionType defendingFaction = FactionType.None;
         
         [Header("Battle Progress")]
         [SerializeField] private float battleStartTime;
@@ -50,31 +50,31 @@ namespace ElitesAndPawns.WarMap
         
         [Header("Player Tracking")]
         private Dictionary<string, PlayerBattleStats> playerStats = new Dictionary<string, PlayerBattleStats>();
-        private Dictionary<Team, int> factionPlayerCount = new Dictionary<Team, int>();
+        private Dictionary<FactionType, int> factionPlayerCount = new Dictionary<FactionType, int>();
         
         // Network synced battle state
         [SyncVar]
         private bool battleActive = false;
         
         [SyncVar]
-        private Team winningFaction = Team.None;
+        private FactionType winningFaction = FactionType.None;
         
         #endregion
         
         #region Properties
         
         public bool IsBattleActive => battleActive;
-        public Team WinningFaction => winningFaction;
+        public FactionType WinningFaction => winningFaction;
         public float BattleDuration => Time.time - battleStartTime;
         public int BattleNodeID => battleNodeID;
-        public Team AttackingFaction => attackingFaction;
-        public Team DefendingFaction => defendingFaction;
+        public FactionType AttackingFaction => attackingFaction;
+        public FactionType DefendingFaction => defendingFaction;
         
         #endregion
         
         #region Events
         
-        public static event System.Action<Team> OnBattleStarted;
+        public static event System.Action<FactionType> OnBattleStarted;
         public static event System.Action<BattleResult> OnBattleEnded;
         public static event System.Action<string, int> OnPlayerScored;
         
@@ -138,8 +138,8 @@ namespace ElitesAndPawns.WarMap
         private void LoadBattleParameters()
         {
             battleNodeID = PlayerPrefs.GetInt("BattleNodeID", 0);
-            attackingFaction = (Team)PlayerPrefs.GetInt("AttackingFaction", 1);
-            defendingFaction = (Team)PlayerPrefs.GetInt("DefendingFaction", 2);
+            attackingFaction = (FactionType)PlayerPrefs.GetInt("AttackingFaction", 1);
+            defendingFaction = (FactionType)PlayerPrefs.GetInt("DefendingFaction", 2);
             
             Debug.Log($"[BattleIntegration] Loaded battle parameters - Node: {battleNodeID}, " +
                      $"Attackers: {attackingFaction}, Defenders: {defendingFaction}");
@@ -150,11 +150,11 @@ namespace ElitesAndPawns.WarMap
         {
             battleActive = true;
             battleStartTime = Time.time;
-            winningFaction = Team.None;
+            winningFaction = FactionType.None;
             
-            factionPlayerCount[Team.Blue] = 0;
-            factionPlayerCount[Team.Red] = 0;
-            factionPlayerCount[Team.Green] = 0;
+            factionPlayerCount[FactionType.Blue] = 0;
+            factionPlayerCount[FactionType.Red] = 0;
+            factionPlayerCount[FactionType.Green] = 0;
             
             OnBattleStarted?.Invoke(attackingFaction);
             
@@ -170,7 +170,7 @@ namespace ElitesAndPawns.WarMap
             if (!isBattleScene)
                 return;
             
-            ControlPoint.OnPointCaptured += (faction) => OnPointCaptured((Team)(int)faction, 10);
+            ControlPoint.OnPointCaptured += (faction) => OnPointCaptured((FactionType)(int)faction, 10);
         }
         
         private void UnsubscribeFromGameEvents()
@@ -191,7 +191,7 @@ namespace ElitesAndPawns.WarMap
         /// <param name="squadOwnerNetId">Output: Net ID of the squad owner</param>
         /// <returns>True if spawn is allowed</returns>
         [Server]
-        public bool RequestSpawn(uint playerNetId, Team faction, out string squadId, out uint squadOwnerNetId)
+        public bool RequestSpawn(uint playerNetId, FactionType faction, out string squadId, out uint squadOwnerNetId)
         {
             squadId = "";
             squadOwnerNetId = 0;
@@ -223,7 +223,7 @@ namespace ElitesAndPawns.WarMap
         /// Check if a faction has any spawn tickets remaining at this node.
         /// </summary>
         [Server]
-        public bool HasSpawnTickets(Team faction)
+        public bool HasSpawnTickets(FactionType faction)
         {
             if (NodeOccupancy.Instance != null)
             {
@@ -235,7 +235,7 @@ namespace ElitesAndPawns.WarMap
         /// <summary>
         /// Get remaining spawn tickets for a faction.
         /// </summary>
-        public int GetRemainingSpawnTickets(Team faction)
+        public int GetRemainingSpawnTickets(FactionType faction)
         {
             if (NodeOccupancy.Instance != null)
             {
@@ -252,7 +252,7 @@ namespace ElitesAndPawns.WarMap
         /// Register a player joining the battle.
         /// </summary>
         [Server]
-        public void RegisterPlayer(string playerId, Team faction, GameObject playerObject = null)
+        public void RegisterPlayer(string playerId, FactionType faction, GameObject playerObject = null)
         {
             if (!playerStats.ContainsKey(playerId))
             {
@@ -273,7 +273,7 @@ namespace ElitesAndPawns.WarMap
                         playerHealth.OnDeath += (killer) => 
                         {
                             string killerId = killer?.netId.ToString() ?? "";
-                            Team killerTeam = (Team)(int)(killer?.Faction ?? ElitesAndPawns.Core.FactionType.None);
+                            FactionType killerTeam = (FactionType)(int)(killer?.Faction ?? ElitesAndPawns.Core.FactionType.None);
                             OnPlayerKilled(playerId, killerId, killerTeam);
                         };
                     }
@@ -302,7 +302,7 @@ namespace ElitesAndPawns.WarMap
         
         #region Battle Events
         
-        private void OnPlayerKilled(string victimId, string killerId, Team killerTeam)
+        private void OnPlayerKilled(string victimId, string killerId, FactionType killerTeam)
         {
             if (!isServer || !battleActive)
                 return;
@@ -321,16 +321,16 @@ namespace ElitesAndPawns.WarMap
             }
             
             // Check if losing faction is out of spawn tickets
-            Team victimFaction = playerStats.ContainsKey(victimId) ? playerStats[victimId].Faction : Team.None;
-            if (victimFaction != Team.None && !HasSpawnTickets(victimFaction))
+            FactionType victimFaction = playerStats.ContainsKey(victimId) ? playerStats[victimId].Faction : FactionType.None;
+            if (victimFaction != FactionType.None && !HasSpawnTickets(victimFaction))
             {
                 // Faction eliminated - they lose
-                Team winner = (victimFaction == attackingFaction) ? defendingFaction : attackingFaction;
+                FactionType winner = (victimFaction == attackingFaction) ? defendingFaction : attackingFaction;
                 EndBattle(winner);
             }
         }
         
-        private void OnPointCaptured(Team capturingTeam, int pointsAwarded)
+        private void OnPointCaptured(FactionType capturingTeam, int pointsAwarded)
         {
             if (!isServer || !battleActive)
                 return;
@@ -368,11 +368,11 @@ namespace ElitesAndPawns.WarMap
             
             if (blueScore >= targetScore)
             {
-                EndBattle(Team.Blue);
+                EndBattle(FactionType.Blue);
             }
             else if (redScore >= targetScore)
             {
-                EndBattle(Team.Red);
+                EndBattle(FactionType.Red);
             }
         }
         
@@ -382,11 +382,11 @@ namespace ElitesAndPawns.WarMap
             int blueScore = ScoreNetworkSync.Instance?.BlueScore ?? 0;
             int redScore = ScoreNetworkSync.Instance?.RedScore ?? 0;
             
-            Team winner = Team.None;
+            FactionType winner = FactionType.None;
             if (blueScore > redScore)
-                winner = Team.Blue;
+                winner = FactionType.Blue;
             else if (redScore > blueScore)
-                winner = Team.Red;
+                winner = FactionType.Red;
             else
                 winner = defendingFaction;
             
@@ -394,7 +394,7 @@ namespace ElitesAndPawns.WarMap
         }
         
         [Server]
-        private void EndBattle(Team winner)
+        private void EndBattle(FactionType winner)
         {
             if (!battleActive)
                 return;
@@ -418,7 +418,7 @@ namespace ElitesAndPawns.WarMap
         #region Result Calculation
         
         [Server]
-        private BattleResult CalculateBattleResult(Team winner)
+        private BattleResult CalculateBattleResult(FactionType winner)
         {
             var result = new BattleResult
             {
@@ -433,7 +433,7 @@ namespace ElitesAndPawns.WarMap
             
             if (ScoreNetworkSync.Instance != null)
             {
-                if (winner == Team.Blue)
+                if (winner == FactionType.Blue)
                 {
                     winnerScore = ScoreNetworkSync.Instance.BlueScore;
                     loserScore = ScoreNetworkSync.Instance.RedScore;
@@ -504,7 +504,7 @@ namespace ElitesAndPawns.WarMap
         #region Client RPCs
         
         [ClientRpc]
-        public void RpcShowBattleResults(Team winner)
+        public void RpcShowBattleResults(FactionType winner)
         {
             Debug.Log($"[BattleIntegration-Client] Battle ended! Winner: {winner}");
         }
@@ -524,7 +524,7 @@ namespace ElitesAndPawns.WarMap
         private class PlayerBattleStats
         {
             public string PlayerId;
-            public Team Faction;
+            public FactionType Faction;
             public int Kills;
             public int Deaths;
             public int CapturePoints;

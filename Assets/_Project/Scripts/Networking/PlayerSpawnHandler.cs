@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Mirror;
 using ElitesAndPawns.Core;
 
@@ -93,14 +93,14 @@ namespace ElitesAndPawns.Networking
             Debug.Log($"[PlayerSpawnHandler] Spawned {msg.playerType} player for connection {conn.connectionId}");
         }
         
-        Vector3 GetFPSSpawnPosition(Team faction, int nodeId)
+        Vector3 GetFPSSpawnPosition(FactionType faction, int nodeId)
         {
-            // Convert Team to FactionType for SpawnPoint compatibility
+            // Convert FactionType to FactionType for SpawnPoint compatibility
             FactionType factionType = faction switch
             {
-                Team.Blue => FactionType.Blue,
-                Team.Red => FactionType.Red,
-                Team.Green => FactionType.Green,
+                FactionType.Blue => FactionType.Blue,
+                FactionType.Red => FactionType.Red,
+                FactionType.Green => FactionType.Green,
                 _ => FactionType.None
             };
             
@@ -118,7 +118,7 @@ namespace ElitesAndPawns.Networking
             // Fallback: use configured spawn points
             if (fpsSpawnPoints != null && fpsSpawnPoints.Length > 0)
             {
-                int index = faction == Team.Blue ? 0 : Mathf.Min(1, fpsSpawnPoints.Length - 1);
+                int index = faction == FactionType.Blue ? 0 : Mathf.Min(1, fpsSpawnPoints.Length - 1);
                 if (fpsSpawnPoints[index] != null)
                 {
                     return fpsSpawnPoints[index].position;
@@ -126,13 +126,13 @@ namespace ElitesAndPawns.Networking
             }
             
             // Last resort: default positions
-            return faction == Team.Blue ? new Vector3(-5, 1, 0) : new Vector3(5, 1, 0);
+            return faction == FactionType.Blue ? new Vector3(-5, 1, 0) : new Vector3(5, 1, 0);
         }
         
         /// <summary>
         /// Call this from a client to request spawning as a specific player type.
         /// </summary>
-        public static void RequestSpawn(PlayerType type, Team faction, int nodeId)
+        public static void RequestSpawn(PlayerType type, FactionType faction, int nodeId)
         {
             if (!NetworkClient.isConnected)
             {
@@ -167,7 +167,7 @@ namespace ElitesAndPawns.Networking
     public struct SpawnRequestMessage : NetworkMessage
     {
         public PlayerType playerType;
-        public Team faction;
+        public FactionType faction;
         public int nodeId;
     }
 }

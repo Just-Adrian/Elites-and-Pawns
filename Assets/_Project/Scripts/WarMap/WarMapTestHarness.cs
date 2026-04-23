@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -27,7 +27,7 @@ namespace ElitesAndPawns.WarMap
         [SerializeField] private bool createTestNodes = true;
         
         [Header("Quick Actions")]
-        [SerializeField] private Team testFaction = Team.Blue;
+        [SerializeField] private FactionType testFaction = FactionType.Blue;
         [SerializeField] private int testNodeID = 0;
         [SerializeField] private int testSquadIndex = 0;
         
@@ -49,7 +49,7 @@ namespace ElitesAndPawns.WarMap
         private CaptureController captureController;
         
         // Test players (created for testing, real game uses NetworkManager's prefab)
-        private Dictionary<Team, PlayerSquadManager> testSquadManagers = new Dictionary<Team, PlayerSquadManager>();
+        private Dictionary<FactionType, PlayerSquadManager> testSquadManagers = new Dictionary<FactionType, PlayerSquadManager>();
         
         private bool isInitialized = false;
         private NetworkManager networkManager;
@@ -204,8 +204,8 @@ namespace ElitesAndPawns.WarMap
                 yield return new WaitForSeconds(0.2f);
                 
                 // Create test squad managers for Blue and Red
-                CreateTestSquadManager(Team.Blue, "BlueCommander", 0);
-                CreateTestSquadManager(Team.Red, "RedCommander", 4);
+                CreateTestSquadManager(FactionType.Blue, "BlueCommander", 0);
+                CreateTestSquadManager(FactionType.Red, "RedCommander", 4);
             }
             else
             {
@@ -297,7 +297,7 @@ namespace ElitesAndPawns.WarMap
             showDebugGUI = false;
         }
         
-        void CreateTestSquadManager(Team faction, string displayName, int startNodeId)
+        void CreateTestSquadManager(FactionType faction, string displayName, int startNodeId)
         {
             GameObject playerGO;
             
@@ -339,7 +339,7 @@ namespace ElitesAndPawns.WarMap
             testSquadManagers[faction] = squadManager;
         }
         
-        IEnumerator InitializeSquadManagerDelayed(PlayerSquadManager manager, Team faction, string name, int nodeId)
+        IEnumerator InitializeSquadManagerDelayed(PlayerSquadManager manager, FactionType faction, string name, int nodeId)
         {
             // Wait for Mirror to fully initialize the NetworkBehaviour
             yield return new WaitForSeconds(0.3f);
@@ -433,11 +433,11 @@ namespace ElitesAndPawns.WarMap
                 
                 // Set initial control
                 if (i == 0)
-                    node.SetControl(Team.Blue, 100f);
+                    node.SetControl(FactionType.Blue, 100f);
                 else if (i == 4)
-                    node.SetControl(Team.Red, 100f);
+                    node.SetControl(FactionType.Red, 100f);
                 else
-                    node.SetControl(Team.None, 0f);
+                    node.SetControl(FactionType.None, 0f);
             }
             
             // Create visual connection lines
@@ -549,9 +549,9 @@ namespace ElitesAndPawns.WarMap
             
             Color color = node.ControllingFaction switch
             {
-                Team.Blue => Color.blue,
-                Team.Red => Color.red,
-                Team.Green => Color.green,
+                FactionType.Blue => Color.blue,
+                FactionType.Red => Color.red,
+                FactionType.Green => Color.green,
                 _ => Color.gray
             };
             
@@ -637,13 +637,13 @@ namespace ElitesAndPawns.WarMap
             if (tokenSystem == null) return;
             
             GUILayout.Label($"─── Tokens ───", blackLabelStyle);
-            GUILayout.Label($"Blue: {tokenSystem.GetFactionTokens(Team.Blue)} | Red: {tokenSystem.GetFactionTokens(Team.Red)}", blackLabelStyle);
+            GUILayout.Label($"Blue: {tokenSystem.GetFactionTokens(FactionType.Blue)} | Red: {tokenSystem.GetFactionTokens(FactionType.Red)}", blackLabelStyle);
             
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("+500 Blue", blackButtonStyle))
-                tokenSystem.AddTokens(Team.Blue, 500, "Test");
+                tokenSystem.AddTokens(FactionType.Blue, 500, "Test");
             if (GUILayout.Button("+500 Red", blackButtonStyle))
-                tokenSystem.AddTokens(Team.Red, 500, "Test");
+                tokenSystem.AddTokens(FactionType.Red, 500, "Test");
             GUILayout.EndHorizontal();
             GUILayout.Space(5);
         }
@@ -655,9 +655,9 @@ namespace ElitesAndPawns.WarMap
             GUILayout.BeginHorizontal();
             GUILayout.Label($"Faction: {testFaction}", blackLabelStyle, GUILayout.Width(100));
             if (GUILayout.Button("◄", blackButtonStyle, GUILayout.Width(30))) 
-                testFaction = testFaction == Team.Blue ? Team.Red : Team.Blue;
+                testFaction = testFaction == FactionType.Blue ? FactionType.Red : FactionType.Blue;
             if (GUILayout.Button("►", blackButtonStyle, GUILayout.Width(30))) 
-                testFaction = testFaction == Team.Red ? Team.Blue : Team.Red;
+                testFaction = testFaction == FactionType.Red ? FactionType.Blue : FactionType.Red;
             GUILayout.EndHorizontal();
             
             GUILayout.BeginHorizontal();
@@ -744,16 +744,16 @@ namespace ElitesAndPawns.WarMap
             // Node header
             string ownerIcon = node.ControllingFaction switch
             {
-                Team.Blue => "🔵",
-                Team.Red => "🔴",
+                FactionType.Blue => "🔵",
+                FactionType.Red => "🔴",
                 _ => "⚪"
             };
             GUILayout.Label($"{ownerIcon} Node {testNodeID}: {node.NodeName}", blackLabelStyle);
             GUILayout.Label($"   Owner: {node.ControllingFaction} | Control: {node.ControlPercentage:F0}%", blackLabelStyle);
             
             // Manpower summary
-            int blueMP = nodeOccupancy.GetFactionManpowerAtNode(testNodeID, Team.Blue);
-            int redMP = nodeOccupancy.GetFactionManpowerAtNode(testNodeID, Team.Red);
+            int blueMP = nodeOccupancy.GetFactionManpowerAtNode(testNodeID, FactionType.Blue);
+            int redMP = nodeOccupancy.GetFactionManpowerAtNode(testNodeID, FactionType.Red);
             GUILayout.Label($"   🔵 Blue: {blueMP} spawn tickets | 🔴 Red: {redMP} spawn tickets", blackLabelStyle);
             
             // List individual squads
@@ -763,7 +763,7 @@ namespace ElitesAndPawns.WarMap
                 GUILayout.Label("   Squads present:", blackLabelStyle);
                 foreach (var sq in squads)
                 {
-                    string factionIcon = sq.Faction == Team.Blue ? "🔵" : "🔴";
+                    string factionIcon = sq.Faction == FactionType.Blue ? "🔵" : "🔴";
                     GUILayout.Label($"      {factionIcon} {sq.OwnerDisplayName}[{sq.SquadId.Split('_').Last()}]: {sq.Manpower} MP", blackLabelStyle);
                 }
             }
@@ -775,7 +775,7 @@ namespace ElitesAndPawns.WarMap
                 GUILayout.Label("   Incoming:", blackLabelStyle);
                 foreach (var sq in incoming)
                 {
-                    string factionIcon = sq.Faction == Team.Blue ? "🔵" : "🔴";
+                    string factionIcon = sq.Faction == FactionType.Blue ? "🔵" : "🔴";
                     GUILayout.Label($"      {factionIcon} {sq.OwnerDisplayName}: {sq.Manpower} MP (ETA: {sq.ETA:F1}s)", blackLabelStyle);
                 }
             }
@@ -840,9 +840,9 @@ namespace ElitesAndPawns.WarMap
                 string marker = node.NodeID == testNodeID ? "►" : " ";
                 string ownerIcon = node.ControllingFaction switch
                 {
-                    Team.Blue => "🔵",
-                    Team.Red => "🔴",
-                    Team.Green => "🟢",
+                    FactionType.Blue => "🔵",
+                    FactionType.Red => "🔴",
+                    FactionType.Green => "🟢",
                     _ => "⚪"
                 };
                 
@@ -854,8 +854,8 @@ namespace ElitesAndPawns.WarMap
                 string mpInfo = "";
                 if (nodeOccupancy != null)
                 {
-                    int b = nodeOccupancy.GetFactionManpowerAtNode(node.NodeID, Team.Blue);
-                    int r = nodeOccupancy.GetFactionManpowerAtNode(node.NodeID, Team.Red);
+                    int b = nodeOccupancy.GetFactionManpowerAtNode(node.NodeID, FactionType.Blue);
+                    int r = nodeOccupancy.GetFactionManpowerAtNode(node.NodeID, FactionType.Red);
                     
                     if (b > 0) mpInfo += $" 🔵{b}";
                     if (r > 0) mpInfo += $" 🔴{r}";
@@ -905,7 +905,7 @@ namespace ElitesAndPawns.WarMap
                     if (squad.IsMoving)
                     {
                         anyMoving = true;
-                        string factionIcon = squad.Faction == Team.Blue ? "🔵" : "🔴";
+                        string factionIcon = squad.Faction == FactionType.Blue ? "🔵" : "🔴";
                         float progress = squad.MovementProgress * 100f;
                         float eta = squad.TimeToArrival;
                         
